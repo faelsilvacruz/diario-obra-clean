@@ -1,0 +1,7 @@
+streamlit
+yagmail
+pandas
+pillow
+google-api-python-client
+google-auth
+reportlab
