@@ -26,8 +26,9 @@ from googleapiclient.http import MediaIoBaseUpload
 st.set_page_config(page_title="Diário de Obra - RDV", layout="centered")
 
 # Carregar credenciais do Google
-creds = service_account.Credentials.from_service_account_file(
-    "client_secret_742811491910-ve4hod3jr7dm9ktq62me7d21t1oh36is.apps.googleusercontent.com.json",
+creds_dict = json.loads(st.secrets["GOOGLE_CREDENTIALS"])
+creds = service_account.Credentials.from_service_account_info(
+    creds_dict,
     scopes=["https://www.googleapis.com/auth/drive"]
 )
 
