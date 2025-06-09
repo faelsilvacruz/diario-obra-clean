@@ -1,141 +1,143 @@
-# ✅ IMPORTS
 import streamlit as st
 import pandas as pd
+import os
+import json
+import io
+import time
+import traceback
+import logging
 from datetime import datetime
 from pathlib import Path
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.platypus import Paragraph
-from reportlab.lib.units import mm
 from reportlab.lib.colors import HexColor
 from PIL import Image as PILImage
-import json
-import io
-import os
-import yagmail
-import traceback
-
-# 📁 Google Drive
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
-from google.api_core import retry
-from google.auth import transport
+from googleapiclient.errors import HttpError
+import yagmail
 
-# ✅ CONFIGURAÇÃO
+# CONFIGURAÇÃO DE LOG
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# INFORMAÇÕES DO APP
 st.set_page_config(page_title="Diário de Obra - RDV", layout="centered")
+
+# VERIFICAÇÃO DE AMBIENTE
+st.sidebar.subheader("Info do Ambiente")
+st.sidebar.json({
+    "Arquivos CSV": [f for f in os.listdir('.') if f.endswith('.csv')],
+})
+
+# FUNÇÃO ROBUSTA PARA CARREGAR CSV
+def carregar_arquivo_csv(nome_arquivo):
+    try:
+        if not os.path.exists(nome_arquivo):
+            raise FileNotFoundError(f"Arquivo {nome_arquivo} não encontrado")
+        return pd.read_csv(nome_arquivo)
+    except Exception as e:
+        logger.error(f"Erro ao carregar {nome_arquivo}: {str(e)}")
+        st.error(f"Erro: não foi possível carregar {nome_arquivo}")
+        st.stop()
+
+# LEITURA DOS ARQUIVOS
+colab_df = carregar_arquivo_csv("colaboradores.csv")
+obras_df = carregar_arquivo_csv("obras.csv")
+contratos_df = carregar_arquivo_csv("contratos.csv")
+
+colaboradores_lista = colab_df["Nome"].tolist()
+obras_lista = [""] + obras_df["Nome"].tolist()
+contratos_lista = [""] + contratos_df["Nome"].tolist()
+
+# DRIVE
 DRIVE_FOLDER_ID = "1BUgZRcBrKksC3eUytoJ5mv_nhMRdAv1d"
-
-# ✅ Google Drive - Criação do serviço robusto
-def criar_servico_drive():
-    try:
-        creds_dict = dict(st.secrets["google_service_account"])
-        creds = service_account.Credentials.from_service_account_info(
-            creds_dict,
-            scopes=["https://www.googleapis.com/auth/drive"]
-        )
-        http = transport.requests.AuthorizedSession(creds)
-        return build("drive", "v3", credentials=creds, static_discovery=False, requestBuilder=http)
-    except Exception as e:
-        st.error(f"Erro ao criar serviço do Google Drive: {str(e)}")
-        return None
-
-# ✅ Upload robusto com retry
-@retry.Retry(
-    initial=1.0,
-    maximum=10.0,
-    multiplier=2.0,
-    deadline=30.0,
-    predicate=retry.if_exception_type(Exception)
+creds = service_account.Credentials.from_service_account_info(
+    st.secrets["google_service_account"],
+    scopes=["https://www.googleapis.com/auth/drive"]
 )
-def upload_para_drive_robusto(pdf_buffer, nome_arquivo):
-    try:
-        service = criar_servico_drive()
-        if not service:
-            return None
 
-        # Verifica se a pasta existe
+# UPLOAD PARA O GOOGLE DRIVE
+def upload_para_drive_seguro(pdf_buffer, nome_arquivo):
+    MAX_RETRIES = 3
+    WAIT_SECONDS = 2
+    for attempt in range(MAX_RETRIES):
         try:
-            service.files().get(fileId=DRIVE_FOLDER_ID, fields='id', supportsAllDrives=True).execute()
+            pdf_buffer.seek(0)
+            service = build("drive", "v3", credentials=creds, static_discovery=False)
+            media = MediaIoBaseUpload(pdf_buffer, mimetype='application/pdf', resumable=True)
+            file_metadata = {
+                'name': nome_arquivo,
+                'parents': [DRIVE_FOLDER_ID],
+                'supportsAllDrives': True
+            }
+            request = service.files().create(
+                body=file_metadata,
+                media_body=media,
+                fields='id',
+                supportsAllDrives=True
+            )
+            response = None
+            while response is None:
+                status, response = request.next_chunk()
+                if status:
+                    logger.info(f"Upload {int(status.progress() * 100)}% completo")
+            return response.get('id')
+        except HttpError as http_err:
+            logger.error(f"Tentativa {attempt + 1} falhou: {http_err}")
+            time.sleep(WAIT_SECONDS * (attempt + 1))
         except Exception as e:
-            st.error(f"Pasta do Google Drive não acessível: {str(e)}")
-            return None
+            logger.error(f"Erro inesperado: {str(e)}")
+            time.sleep(WAIT_SECONDS * (attempt + 1))
+    return None
 
-        pdf_buffer.seek(0)
-        media = MediaIoBaseUpload(pdf_buffer, mimetype='application/pdf', resumable=True)
-        metadata = {"name": nome_arquivo, "parents": [DRIVE_FOLDER_ID], "supportsAllDrives": True}
-
-        request = service.files().create(body=metadata, media_body=media, fields="id", supportsAllDrives=True)
-        response = None
-        while response is None:
-            status, response = request.next_chunk()
-            if status:
-                st.info(f"Progresso: {int(status.progress() * 100)}%")
-
-        return response.get("id")
-
-    except Exception as e:
-        st.error(f"Erro no upload: {str(e)}")
-        raise
-
-# ✅ PDF
-
+# GERAR PDF
 def gerar_pdf(registro, fotos_paths):
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
-    y = height - 30
-
+    margem = 30
+    y = height - margem
     c.setFont("Helvetica-Bold", 16)
     c.setFillColor(HexColor("#0F2A4D"))
     c.drawCentredString(width / 2, y, "Diário de Obra - RDV Engenharia")
     y -= 40
-
     c.setFont("Helvetica", 12)
     c.setFillColor("black")
     for campo in ["Obra", "Local", "Data", "Contrato", "Clima", "Máquinas", "Serviços"]:
-        c.drawString(30, y, f"{campo}: {registro[campo]}")
+        texto = f"{campo}: {registro[campo]}"
+        c.drawString(margem, y, texto)
         y -= 20
-
-    c.drawString(30, y, "Efetivo:")
+    c.drawString(margem, y, "Efetivo de Pessoal:")
     y -= 20
     for item in json.loads(registro["Efetivo"]):
-        c.drawString(40, y, f"- {item['Nome']} ({item['Função']}): {item['Entrada']} - {item['Saída']}")
+        linha = f"- {item['Nome']} ({item['Função']}): {item['Entrada']} - {item['Saída']}"
+        c.drawString(margem + 10, y, linha)
         y -= 15
-
     y -= 10
-    c.drawString(30, y, f"Ocorrências: {registro['Ocorrências']}")
+    c.drawString(margem, y, f"Ocorrências: {registro['Ocorrências']}")
     y -= 20
-    c.drawString(30, y, f"Responsável: {registro['Responsável Empresa']}")
+    c.drawString(margem, y, f"Responsável Empresa: {registro['Responsável Empresa']}")
     if registro['Fiscalização']:
         y -= 20
-        c.drawString(30, y, f"Fiscalização: {registro['Fiscalização']}")
-
+        c.drawString(margem, y, f"Fiscalização: {registro['Fiscalização']}")
     for foto_path in fotos_paths:
         try:
             c.showPage()
-            y = height - 30
-            c.drawString(30, y, f"Foto: {Path(foto_path).name}")
+            y = height - margem
+            c.drawString(margem, y, f"Foto: {Path(foto_path).name}")
             img = PILImage.open(foto_path)
             img.thumbnail((500, 500))
-            c.drawImage(ImageReader(img), 30, y - 500, width=500, height=300)
+            c.drawImage(ImageReader(img), margem, y - 500, width=500, height=300)
         except:
             continue
-
     c.save()
     buffer.seek(0)
     return buffer
 
-# ✅ UI e dados
-colab_df = pd.read_csv("colaboradores.csv")
-colaboradores_lista = colab_df["Nome"].tolist()
-obras_df = pd.read_csv("obras.csv")
-obras_lista = [""] + obras_df["Nome"].tolist()
-contratos_df = pd.read_csv("contratos.csv")
-contratos_lista = [""] + contratos_df["Nome"].tolist()
-
+# UI
 st.title("📋 Diário de Obra - RDV Engenharia")
 obra = st.selectbox("Obra", obras_lista)
 local = st.text_input("Local")
@@ -150,18 +152,24 @@ qtd_colaboradores = st.number_input("Quantos colaboradores hoje?", min_value=1, 
 efetivo_lista = []
 for i in range(qtd_colaboradores):
     with st.expander(f"👷 Colaborador {i+1}"):
-        nome = st.selectbox("Nome", colaboradores_lista, key=f"nome_{i}")
-        funcao = colab_df.loc[colab_df["Nome"] == nome, "Função"].values[0]
+        nome = st.selectbox(f"Nome", colaboradores_lista, key=f"nome_{i}")
+        funcao_sugerida = colab_df.loc[colab_df["Nome"] == nome, "Função"].values[0]
+        funcao = st.text_input("Função", value=funcao_sugerida, key=f"funcao_{i}")
         ent = st.time_input("Entrada", key=f"ent_{i}")
         sai = st.time_input("Saída", key=f"sai_{i}")
-        efetivo_lista.append({"Nome": nome, "Função": funcao, "Entrada": ent.strftime("%H:%M"), "Saída": sai.strftime("%H:%M")})
+        efetivo_lista.append({
+            "Nome": nome,
+            "Função": funcao,
+            "Entrada": ent.strftime("%H:%M"),
+            "Saída": sai.strftime("%H:%M")
+        })
 
 ocorrencias = st.text_area("Ocorrências")
 nome_empresa = st.text_input("Responsável pela empresa")
 nome_fiscal = st.text_input("Nome da fiscalização")
 fotos = st.file_uploader("Fotos do serviço", accept_multiple_files=True, type=["png", "jpg", "jpeg"])
 
-# ✅ PROCESSAR ENVIO
+# GERAR RELATÓRIO
 if st.button("💾 Salvar e Gerar Relatório"):
     registro = {
         "Obra": obra,
@@ -188,36 +196,41 @@ if st.button("💾 Salvar e Gerar Relatório"):
         fotos_paths.append(str(caminho_foto))
 
     nome_pdf = f"Diario_{obra.replace(' ', '_')}_{data.strftime('%Y-%m-%d')}.pdf"
-    pdf_download = gerar_pdf(registro, fotos_paths)
-    st.download_button("📥 Baixar PDF", data=pdf_download, file_name=nome_pdf, mime="application/pdf")
+    pdf = gerar_pdf(registro, fotos_paths)
+    st.download_button("📥 Baixar PDF", data=pdf, file_name=nome_pdf, mime="application/pdf")
 
-    try:
-        drive_id = upload_para_drive_robusto(gerar_pdf(registro, fotos_paths), nome_pdf)
+    with st.spinner("Salvando no Google Drive..."):
+        drive_id = upload_para_drive_seguro(io.BytesIO(pdf.getvalue()), nome_pdf)
         if drive_id:
             st.success("✅ PDF salvo com sucesso no Google Drive!")
             st.markdown(f"[📂 Abrir no Google Drive](https://drive.google.com/file/d/{drive_id}/view)")
 
+            # ENVIO DO E-MAIL
             try:
-                yag = yagmail.SMTP(st.secrets["email"]["user"], st.secrets["email"]["password"])
+                yag = yagmail.SMTP(
+                    st.secrets["email"]["user"],
+                    st.secrets["email"]["password"]
+                )
+                link_drive = f"https://drive.google.com/file/d/{drive_id}/view"
                 assunto = f"📋 Novo Diário de Obra - {obra} ({data.strftime('%d/%m/%Y')})"
                 corpo = f"""
-Olá, equipe RDV!
+                Olá, equipe RDV!
 
-O diário de obra foi preenchido com sucesso.
+                O diário de obra foi preenchido com sucesso.
 
-📍 Obra: {obra}
-📅 Data: {data.strftime('%d/%m/%Y')}
-📝 Responsável: {nome_empresa}
+                📍 Obra: {obra}
+                📅 Data: {data.strftime('%d/%m/%Y')}
+                📝 Responsável: {nome_empresa}
 
-📎 Acesse o relatório em PDF:
-https://drive.google.com/file/d/{drive_id}/view
+                📎 Acesse o relatório em PDF:
+                {link_drive}
+
+                Atenciosamente,  
+                Sistema Diário de Obra - RDV Engenharia
                 """
                 yag.send(to=["comercial@rdvengenharia.com.br", "administrativo@rdvengenharia.com.br"], subject=assunto, contents=corpo)
-                st.success("📨 E-mail enviado com sucesso!")
+                st.success("📨 E-mail enviado com sucesso para a diretoria.")
             except Exception as e:
-                st.warning(f"⚠️ Erro ao enviar e-mail: {str(e)}")
+                st.warning(f"⚠️ Falha ao enviar e-mail: {str(e)}")
         else:
-            st.error("❌ Falha no upload para o Google Drive")
-    except Exception as e:
-        st.error(f"🚨 Erro inesperado: {str(e)}")
-        st.text(traceback.format_exc())
+            st.error("❌ Falha ao salvar PDF no Drive")
