@@ -7,36 +7,40 @@ from pathlib import Path
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import Paragraph
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.lib.colors import HexColor
 from PIL import Image as PILImage
 import json
 import io
-import textwrap
 import os
+import textwrap
 
 # 📁 GOOGLE DRIVE SETUP
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 
-# Deve ser o primeiro comando
+# ✅ Configuração inicial
 st.set_page_config(page_title="Diário de Obra - RDV", layout="centered")
 
-# ✅ Carregar credenciais do Google a partir dos secrets
+# ✅ Credenciais do Google Drive
 creds_dict = dict(st.secrets["google_service_account"])
 creds = service_account.Credentials.from_service_account_info(
-    creds_dict,
-    scopes=["https://www.googleapis.com/auth/drive"]
+    creds_dict, scopes=["https://www.googleapis.com/auth/drive"]
 )
-
 service = build("drive", "v3", credentials=creds)
-DRIVE_FOLDER_ID = "1BUgZRcBrKksC3eUytoJ5mv_nhMRdAv1d"  # <- sua pasta do Drive
+DRIVE_FOLDER_ID = "1BUgZRcBrKksC3eUytoJ5mv_nhMRdAv1d"
 
+# ✅ Verificação de acesso ao Google Drive
+try:
+    test = service.files().list(pageSize=1).execute()
+    st.success("✅ Conexão com Google Drive verificada")
+except Exception as e:
+    st.error(f"❌ Falha na conexão com o Drive: {str(e)}")
 
-# Leitura de CSVs
+# ✅ Leitura de dados
 colab_df = pd.read_csv("colaboradores.csv")
 colaboradores_lista = colab_df["Nome"].tolist()
 obras_df = pd.read_csv("obras.csv")
@@ -44,7 +48,7 @@ obras_lista = [""] + obras_df["Nome"].tolist()
 contratos_df = pd.read_csv("contratos.csv")
 contratos_lista = [""] + contratos_df["Nome"].tolist()
 
-# UI
+# ✅ Interface do usuário
 st.title("📋 Diário de Obra - RDV Engenharia")
 obra = st.selectbox("Obra", obras_lista)
 local = st.text_input("Local")
@@ -76,14 +80,14 @@ nome_empresa = st.text_input("Responsável pela empresa")
 nome_fiscal = st.text_input("Nome da fiscalização")
 fotos = st.file_uploader("Fotos do serviço", accept_multiple_files=True, type=["png", "jpg", "jpeg"])
 
-# PDF Generation
+# ✅ Geração do PDF
 def gerar_pdf(registro, fotos_paths):
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
     margem = 30
     y = height - margem
-    
+
     c.setFont("Helvetica-Bold", 16)
     c.setFillColor(HexColor("#0F2A4D"))
     c.drawCentredString(width / 2, y, "Diário de Obra - RDV Engenharia")
@@ -92,15 +96,13 @@ def gerar_pdf(registro, fotos_paths):
     c.setFillColor("black")
 
     for campo in ["Obra", "Local", "Data", "Contrato", "Clima", "Máquinas", "Serviços"]:
-        texto = f"{campo}: {registro[campo]}"
-        c.drawString(margem, y, texto)
+        c.drawString(margem, y, f"{campo}: {registro[campo]}")
         y -= 20
 
     c.drawString(margem, y, "Efetivo de Pessoal:")
     y -= 20
     for item in json.loads(registro["Efetivo"]):
-        linha = f"- {item['Nome']} ({item['Função']}): {item['Entrada']} - {item['Saída']}"
-        c.drawString(margem + 10, y, linha)
+        c.drawString(margem + 10, y, f"- {item['Nome']} ({item['Função']}): {item['Entrada']} - {item['Saída']}")
         y -= 15
 
     y -= 10
@@ -126,17 +128,22 @@ def gerar_pdf(registro, fotos_paths):
     buffer.seek(0)
     return buffer
 
-# UPLOAD para o Google Drive
+# ✅ Upload para Google Drive
 def upload_para_drive(pdf_buffer, nome_arquivo):
-    media = MediaIoBaseUpload(pdf_buffer, mimetype='application/pdf')
-    file_metadata = {
-        'name': nome_arquivo,
-        'parents': [DRIVE_FOLDER_ID]
-    }
-    arquivo = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-    return arquivo.get("id")
+    try:
+        pdf_buffer.seek(0)
+        media = MediaIoBaseUpload(pdf_buffer, mimetype='application/pdf')
+        file_metadata = {'name': nome_arquivo, 'parents': [DRIVE_FOLDER_ID]}
+        drive_service = build("drive", "v3", credentials=creds, static_discovery=False)
+        arquivo = drive_service.files().create(
+            body=file_metadata, media_body=media, fields='id', supportsAllDrives=True
+        ).execute()
+        return arquivo.get("id")
+    except Exception as e:
+        st.error(f"❌ Erro detalhado no upload: {str(e)}")
+        return None
 
-# Botão principal
+# ✅ Ação principal
 if st.button("💾 Salvar e Gerar Relatório"):
     registro = {
         "Obra": obra,
@@ -152,7 +159,6 @@ if st.button("💾 Salvar e Gerar Relatório"):
         "Fiscalização": nome_fiscal
     }
 
-    # Salvar fotos
     fotos_dir = Path("fotos")
     fotos_dir.mkdir(exist_ok=True)
     fotos_paths = []
@@ -164,25 +170,23 @@ if st.button("💾 Salvar e Gerar Relatório"):
         fotos_paths.append(str(caminho_foto))
 
     nome_pdf = f"Diario_{obra.replace(' ', '_')}_{data.strftime('%Y-%m-%d')}.pdf"
-
-    # Gerar PDF para download
     pdf_download = gerar_pdf(registro, fotos_paths)
-    st.download_button("📥 Baixar PDF", data=pdf_download, file_name=nome_pdf, mime="application/pdf")
-
-    # Gerar novo buffer para upload
     pdf_upload = gerar_pdf(registro, fotos_paths)
 
-    try:
+    st.download_button("📥 Baixar PDF", data=pdf_download, file_name=nome_pdf, mime="application/pdf")
+
+    with st.spinner("📤 Enviando para o Google Drive..."):
         drive_id = upload_para_drive(pdf_upload, nome_pdf)
+
         if drive_id:
             st.success("✅ PDF salvo com sucesso no Google Drive!")
             st.markdown(f"[📂 Abrir no Google Drive](https://drive.google.com/file/d/{drive_id}/view)")
 
-            # Enviar e-mail
-            try:
-                yag = yagmail.SMTP("rdvengenhariaadm@gmail.com", "rxca mcau ulzc lfnr")
-                assunto = f"📋 Novo Diário de Obra - {obra} ({data.strftime('%d/%m/%Y')})"
-                corpo = f"""
+            with st.spinner("📨 Enviando e-mail..."):
+                try:
+                    yag = yagmail.SMTP(user=st.secrets["email"]["user"], password=st.secrets["email"]["password"])
+                    assunto = f"📋 Novo Diário de Obra - {obra} ({data.strftime('%d/%m/%Y')})"
+                    corpo = f"""
 Olá, equipe RDV!
 
 O diário de obra foi preenchido com sucesso.
@@ -196,21 +200,14 @@ https://drive.google.com/file/d/{drive_id}/view
 
 Atenciosamente,  
 Sistema Diário de Obra - RDV Engenharia
-                """
-                yag.send(
-                    to=["comercial@rdvengenharia.com.br", "administrativo@rdvengenharia.com.br"],
-                    subject=assunto,
-                    contents=corpo
-                )
-                st.success("📨 E-mail enviado com sucesso para a diretoria.")
-            except Exception as e:
-                st.warning(f"⚠️ Falha ao enviar e-mail: {str(e)}")
+                    """
+                    yag.send(
+                        to=["comercial@rdvengenharia.com.br", "administrativo@rdvengenharia.com.br"],
+                        subject=assunto,
+                        contents=corpo
+                    )
+                    st.success("📨 E-mail enviado com sucesso!")
+                except Exception as e:
+                    st.error(f"❌ Erro no envio do e-mail: {str(e)}")
         else:
-            st.error("⚠️ Erro: Upload no Google Drive não retornou um ID.")
-    except Exception as e:
-        st.error(f"⚠️ Erro ao enviar para o Google Drive: {str(e)}")
-
-    st.success("✅ PDF salvo com sucesso no Google Drive!")
-    st.markdown(f"[📂 Abrir no Google Drive](https://drive.google.com/file/d/{drive_id}/view)")
-# Teste de commit para verificar e-mail e GitHub Desktop
-
+            st.error("⚠️ O PDF não foi salvo no Google Drive.")
