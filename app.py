@@ -152,6 +152,7 @@ if st.button("💾 Salvar e Gerar Relatório"):
         "Fiscalização": nome_fiscal
     }
 
+    # Salvar fotos
     fotos_dir = Path("fotos")
     fotos_dir.mkdir(exist_ok=True)
     fotos_paths = []
@@ -162,19 +163,26 @@ if st.button("💾 Salvar e Gerar Relatório"):
             f.write(foto.getbuffer())
         fotos_paths.append(str(caminho_foto))
 
-    pdf = gerar_pdf(registro, fotos_paths)
     nome_pdf = f"Diario_{obra.replace(' ', '_')}_{data.strftime('%Y-%m-%d')}.pdf"
-    st.download_button("📥 Baixar PDF", data=pdf, file_name=nome_pdf, mime="application/pdf")
 
-    # Upload automático
-    drive_id = upload_para_drive(pdf, nome_pdf)
-    # ✅ Envio do e-mail de notificação
+    # Gerar PDF para download
+    pdf_download = gerar_pdf(registro, fotos_paths)
+    st.download_button("📥 Baixar PDF", data=pdf_download, file_name=nome_pdf, mime="application/pdf")
+
+    # Gerar novo buffer para upload
+    pdf_upload = gerar_pdf(registro, fotos_paths)
+
     try:
-        yag = yagmail.SMTP("rdvengenhariaadm@gmail.com", "rxca mcau ulzc lfnr")
-        link_drive = f"https://drive.google.com/file/d/{drive_id}/view"
+        drive_id = upload_para_drive(pdf_upload, nome_pdf)
+        if drive_id:
+            st.success("✅ PDF salvo com sucesso no Google Drive!")
+            st.markdown(f"[📂 Abrir no Google Drive](https://drive.google.com/file/d/{drive_id}/view)")
 
-        assunto = f"📋 Novo Diário de Obra - {obra} ({data.strftime('%d/%m/%Y')})"
-        corpo = f"""
+            # Enviar e-mail
+            try:
+                yag = yagmail.SMTP("rdvengenhariaadm@gmail.com", "rxca mcau ulzc lfnr")
+                assunto = f"📋 Novo Diário de Obra - {obra} ({data.strftime('%d/%m/%Y')})"
+                corpo = f"""
 Olá, equipe RDV!
 
 O diário de obra foi preenchido com sucesso.
@@ -184,21 +192,23 @@ O diário de obra foi preenchido com sucesso.
 📝 Responsável: {nome_empresa}
 
 📎 Acesse o relatório em PDF:
-{link_drive}
+https://drive.google.com/file/d/{drive_id}/view
 
 Atenciosamente,  
 Sistema Diário de Obra - RDV Engenharia
-"""
-
-        destinatarios = [
-            "comercial@rdvengenharia.com.br",
-            "administrativo@rdvengenharia.com.br"
-        ]
-
-        yag.send(to=destinatarios, subject=assunto, contents=corpo)
-        st.success("📨 E-mail enviado com sucesso para a diretoria.")
+                """
+                yag.send(
+                    to=["comercial@rdvengenharia.com.br", "administrativo@rdvengenharia.com.br"],
+                    subject=assunto,
+                    contents=corpo
+                )
+                st.success("📨 E-mail enviado com sucesso para a diretoria.")
+            except Exception as e:
+                st.warning(f"⚠️ Falha ao enviar e-mail: {str(e)}")
+        else:
+            st.error("⚠️ Erro: Upload no Google Drive não retornou um ID.")
     except Exception as e:
-        st.warning(f"⚠️ Falha ao enviar e-mail: {e}")
+        st.error(f"⚠️ Erro ao enviar para o Google Drive: {str(e)}")
 
     st.success("✅ PDF salvo com sucesso no Google Drive!")
     st.markdown(f"[📂 Abrir no Google Drive](https://drive.google.com/file/d/{drive_id}/view)")
