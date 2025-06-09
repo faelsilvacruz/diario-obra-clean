@@ -1,241 +1,213 @@
-Pelo erro mostrado, identifico que há um problema específico no processamento das fotos antes do upload para o Google Drive. Vou fornecer uma solução completa e testada:
 
-Código Corrigido e Otimizado
-python
-# ✅ IMPORTS ADICIONAIS
+# ✅ IMPORTS
+import streamlit as st
+import pandas as pd
+from datetime import datetime
+from pathlib import Path
+from PIL import Image as PILImage
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
+from reportlab.lib.colors import HexColor
+import os
+import io
+import json
+import yagmail
 import tempfile
-from concurrent.futures import ThreadPoolExecutor
-from google.auth import transport
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
 
-# ✅ CONFIGURAÇÃO DE FOTOS (adicione esta função)
+# ✅ CONSTANTES
+DRIVE_FOLDER_ID = "1BUgZRcBrKksC3eUytoJ5mv_nhMRdAv1d"
+
+st.set_page_config(page_title="Diário de Obra - RDV", layout="centered")
+
+# ✅ CREDENCIAIS
+creds_dict = dict(st.secrets["google_service_account"])
+creds = service_account.Credentials.from_service_account_info(
+    creds_dict, scopes=["https://www.googleapis.com/auth/drive"]
+)
+
+# ✅ CSVs
+def carregar_arquivo_csv(nome_arquivo):
+    if not os.path.exists(nome_arquivo):
+        raise FileNotFoundError(f"Arquivo {nome_arquivo} não encontrado")
+    return pd.read_csv(nome_arquivo)
+
+colab_df = carregar_arquivo_csv("colaboradores.csv")
+obras_df = carregar_arquivo_csv("obras.csv")
+contratos_df = carregar_arquivo_csv("contratos.csv")
+
+colaboradores_lista = colab_df["Nome"].tolist()
+obras_lista = [""] + obras_df["Nome"].tolist()
+contratos_lista = [""] + contratos_df["Nome"].tolist()
+
+# ✅ FORMULÁRIO
+st.title("Relatório Diário de Obra - RDV Engenharia")
+obra = st.selectbox("Obra", obras_lista)
+local = st.text_input("Local")
+data = st.date_input("Data", value=datetime.today())
+contrato = st.selectbox("Contrato", contratos_lista)
+clima = st.selectbox("Condições do dia", ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado"])
+maquinas = st.text_area("Máquinas e equipamentos utilizados")
+servicos = st.text_area("Serviços executados no dia")
+
+st.header("Efetivo de Pessoal")
+qtd_colaboradores = st.number_input("Quantos colaboradores hoje?", min_value=1, max_value=10, step=1)
+efetivo_lista = []
+for i in range(qtd_colaboradores):
+    with st.expander(f"Colaborador {i+1}"):
+        nome = st.selectbox("Nome", colaboradores_lista, key=f"nome_{i}")
+        funcao = colab_df.loc[colab_df["Nome"] == nome, "Função"].values[0]
+        funcao_input = st.text_input("Função", value=funcao, key=f"funcao_{i}")
+        ent = st.time_input("Entrada", key=f"ent_{i}")
+        sai = st.time_input("Saída", key=f"sai_{i}")
+        efetivo_lista.append({
+            "Nome": nome,
+            "Função": funcao_input,
+            "Entrada": ent.strftime("%H:%M"),
+            "Saída": sai.strftime("%H:%M")
+        })
+
+ocorrencias = st.text_area("Ocorrências")
+nome_empresa = st.text_input("Responsável pela empresa")
+nome_fiscal = st.text_input("Nome da fiscalização")
+fotos = st.file_uploader("Fotos do serviço", accept_multiple_files=True, type=["png", "jpg", "jpeg"])
+
+# ✅ PROCESSAMENTO DE FOTOS
 def processar_fotos(fotos_upload):
-    """Processa fotos de forma segura com tratamento de erros"""
     fotos_processadas = []
-    
     with tempfile.TemporaryDirectory() as temp_dir:
-        with ThreadPoolExecutor() as executor:
-            futures = []
-            for i, foto in enumerate(fotos_upload):
-                if foto is None:
-                    continue
-                
-                futures.append(executor.submit(
-                    lambda f, idx: _processar_uma_foto(f, idx, temp_dir),
-                    foto, i
-                ))
-            
-            for future in futures:
-                try:
-                    result = future.result()
-                    if result:
-                        fotos_processadas.append(result)
-                except Exception as e:
-                    st.warning(f"Falha ao processar uma foto: {str(e)}")
-    
+        for i, foto in enumerate(fotos_upload):
+            try:
+                img = PILImage.open(foto)
+                img.thumbnail((1200, 1200))
+                temp_path = os.path.join(temp_dir, f"temp_foto_{i}.jpg")
+                img.save(temp_path, "JPEG", quality=85)
+                fotos_processadas.append(temp_path)
+            except Exception as e:
+                st.warning(f"Erro ao processar foto {i}: {e}")
     return fotos_processadas
 
-def _processar_uma_foto(foto, index, temp_dir):
-    """Processa uma única foto de forma isolada"""
-    try:
-        # Redimensiona a foto para evitar arquivos muito grandes
-        img = PILImage.open(foto)
-        img.thumbnail((1200, 1200))  # Reduz para no máximo 1200px no maior lado
-        
-        # Salva em arquivo temporário
-        temp_path = os.path.join(temp_dir, f"temp_foto_{index}.jpg")
-        img.save(temp_path, "JPEG", quality=85)
-        
-        return temp_path
-    except Exception as e:
-        raise Exception(f"Erro ao processar foto {index}: {str(e)}")
+# ✅ PDF
+def gerar_pdf(registro, fotos_paths):
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+    margem = 30
+    y = height - margem
 
-# ✅ FUNÇÃO DE UPLOAD REVISADA (substitua a existente)
+    c.setFont("Helvetica-Bold", 16)
+    c.setFillColor(HexColor("#0F2A4D"))
+    c.drawCentredString(width / 2, y, "Diário de Obra - RDV Engenharia")
+    y -= 40
+    c.setFont("Helvetica", 12)
+    c.setFillColor("black")
+
+    for campo in ["Obra", "Local", "Data", "Contrato", "Clima", "Máquinas", "Serviços"]:
+        c.drawString(margem, y, f"{campo}: {registro[campo]}")
+        y -= 20
+
+    c.drawString(margem, y, "Efetivo de Pessoal:")
+    y -= 20
+    for item in json.loads(registro["Efetivo"]):
+        linha = f"- {item['Nome']} ({item['Função']}): {item['Entrada']} - {item['Saída']}"
+        c.drawString(margem + 10, y, linha)
+        y -= 15
+
+    y -= 10
+    c.drawString(margem, y, f"Ocorrências: {registro['Ocorrências']}")
+    y -= 20
+    c.drawString(margem, y, f"Responsável Empresa: {registro['Responsável Empresa']}")
+    y -= 20
+    c.drawString(margem, y, f"Fiscalização: {registro['Fiscalização']}")
+
+    for foto_path in fotos_paths:
+        c.showPage()
+        y = height - margem
+        img = PILImage.open(foto_path)
+        img.thumbnail((500, 500))
+        c.drawString(margem, y, f"Foto: {Path(foto_path).name}")
+        c.drawImage(ImageReader(img), margem, y - 300, width=300, height=200)
+
+    c.save()
+    buffer.seek(0)
+    return buffer
+
+# ✅ UPLOAD
 def upload_para_drive_seguro(pdf_buffer, nome_arquivo):
-    """Versão ultra-robusta para upload no Drive"""
     try:
-        # Configuração especial para evitar timeouts
-        creds_dict = dict(st.secrets["google_service_account"])
-        creds = service_account.Credentials.from_service_account_info(
-            creds_dict,
-            scopes=["https://www.googleapis.com/auth/drive"],
-        )
-        
-        # Configuração customizada de HTTP
-        authorized_session = transport.requests.AuthorizedSession(
-            creds,
-            refresh_timeout=30,
-            max_refresh_attempts=3
-        )
-        
-        service = build(
-            "drive",
-            "v3",
-            credentials=creds,
-            static_discovery=False,
-            requestBuilder=authorized_session
-        )
-
-        # Verificação da pasta de destino
-        try:
-            folder = service.files().get(
-                fileId=DRIVE_FOLDER_ID,
-                fields='id,name',
-                supportsAllDrives=True
-            ).execute()
-            st.debug(f"Pasta de destino confirmada: {folder.get('name')}")
-        except Exception as e:
-            st.error(f"Erro ao acessar pasta: {str(e)}")
-            return None
-
-        # Configuração do upload
         pdf_buffer.seek(0)
-        media = MediaIoBaseUpload(
-            pdf_buffer,
-            mimetype='application/pdf',
-            chunksize=1024*1024,  # 1MB por chunk
-            resumable=True
-        )
-        
-        metadata = {
-            'name': nome_arquivo,
-            'parents': [DRIVE_FOLDER_ID],
-            'supportsAllDrives': True
-        }
-
-        # Execução com tratamento de timeout
-        request = service.files().create(
-            body=metadata,
+        service = build("drive", "v3", credentials=creds, static_discovery=False)
+        media = MediaIoBaseUpload(pdf_buffer, mimetype='application/pdf')
+        file_metadata = {'name': nome_arquivo, 'parents': [DRIVE_FOLDER_ID]}
+        file = service.files().create(
+            body=file_metadata,
             media_body=media,
             fields='id',
             supportsAllDrives=True
-        )
-        
-        response = None
-        while response is None:
-            try:
-                status, response = request.next_chunk(timeout=30)
-                if status:
-                    st.debug(f"Progresso: {int(status.progress() * 100)}%")
-            except Exception as e:
-                st.warning(f"Timeout parcial: {str(e)}")
-                continue
-        
-        return response.get('id')
-
-    except HttpError as http_err:
-        st.error(f"Erro HTTP {http_err.status_code}: {http_err.error_details}")
-        return None
+        ).execute()
+        return file.get("id")
     except Exception as e:
-        st.error(f"Erro inesperado: {str(e)}")
+        st.error(f"Erro ao enviar para o Google Drive: {e}")
         return None
 
-# ✅ ATUALIZE A SEÇÃO PRINCIPAL (substitua o bloco if submitted)
-if submitted:
-    if not obra or not local:
-        st.error("Por favor, preencha pelo menos Obra e Local")
-        st.stop()
-    
-    with st.spinner("Processando relatório..."):
+# ✅ EXECUÇÃO FINAL
+if st.button("Salvar e Gerar Relatório"):
+    registro = {
+        "Obra": obra,
+        "Local": local,
+        "Data": data.strftime("%d/%m/%Y"),
+        "Contrato": contrato,
+        "Clima": clima,
+        "Máquinas": maquinas,
+        "Serviços": servicos,
+        "Efetivo": json.dumps(efetivo_lista, ensure_ascii=False),
+        "Ocorrências": ocorrencias,
+        "Responsável Empresa": nome_empresa,
+        "Fiscalização": nome_fiscal
+    }
+
+    st.info("Processando imagens...")
+    fotos_paths = processar_fotos(fotos) if fotos else []
+
+    st.info("Gerando PDF...")
+    nome_pdf = f"Diario_{obra.replace(' ', '_')}_{data.strftime('%Y-%m-%d')}.pdf"
+    pdf_buffer = gerar_pdf(registro, fotos_paths)
+
+    st.download_button("Baixar PDF", data=pdf_buffer, file_name=nome_pdf, mime="application/pdf")
+
+    st.info("Enviando para o Google Drive...")
+    drive_id = upload_para_drive_seguro(io.BytesIO(pdf_buffer.getvalue()), nome_pdf)
+    if drive_id:
+        st.success(f"PDF salvo no Drive! ID: {drive_id}")
+        st.markdown(f"[Abrir no Google Drive](https://drive.google.com/file/d/{drive_id}/view)")
+
         try:
-            # 1. Processar fotos de forma segura
-            with st.spinner("Processando fotos..."):
-                fotos_paths = processar_fotos(fotos) if fotos else []
-            
-            # 2. Gerar PDF
-            registro = {
-                # ... (mantenha seu dicionário de registro)
-            }
-            
-            with st.spinner("Gerando PDF..."):
-                pdf_buffer = gerar_pdf(registro, fotos_paths)
-                nome_pdf = f"Diario_{obra.replace(' ', '_')}_{data.strftime('%Y-%m-%d')}.pdf"
-                
-                # 3. Download
-                st.download_button(
-                    "📥 Baixar PDF",
-                    data=pdf_buffer,
-                    file_name=nome_pdf,
-                    mime="application/pdf"
-                )
-            
-            # 4. Upload para Drive
-            if service:
-                with st.spinner("Salvando no Google Drive (pode demorar)..."):
-                    drive_id = upload_para_drive_seguro(
-                        io.BytesIO(pdf_buffer.getvalue()),
-                        nome_pdf
-                    )
-                    
-                    if drive_id:
-                        st.success(f"✅ PDF salvo no Drive! ID: {drive_id}")
-                        # ... (continue com o envio de e-mail)
-                    else:
-                        st.warning("""
-                        ⚠️ PDF não foi salvo no Drive. Possíveis causas:
-                        - Problemas temporários com a API do Google
-                        - Limite de cota excedido
-                        - Permissões insuficientes
-                        """)
-            
+            yag = yagmail.SMTP(st.secrets["email"]["user"], st.secrets["email"]["password"])
+            corpo = f"""
+Olá, equipe RDV!
+
+O diário de obra foi preenchido com sucesso.
+
+Obra: {obra}
+Data: {data.strftime('%d/%m/%Y')}
+Responsável: {nome_empresa}
+
+Link:
+https://drive.google.com/file/d/{drive_id}/view
+
+Atenciosamente,
+Sistema Diário de Obra - RDV Engenharia
+"""
+            yag.send(
+                to=["comercial@rdvengenharia.com.br", "administrativo@rdvengenharia.com.br"],
+                subject=f"Novo Diário de Obra - {obra} ({data.strftime('%d/%m/%Y')})",
+                contents=corpo
+            )
+            st.success("E-mail enviado com sucesso para a diretoria.")
         except Exception as e:
-            st.error(f"Erro crítico: {str(e)}")
-            st.error("Por favor, tente novamente ou contate o suporte")
-Principais Melhorias Implementadas:
-Processamento Seguro de Fotos:
-
-Uso de diretório temporário
-
-Redimensionamento automático
-
-Processamento em paralelo
-
-Tratamento individual de erros
-
-Upload Ultra-Robusto:
-
-Timeout configurável
-
-Chunked upload para arquivos grandes
-
-Reconexão automática
-
-Feedback de progresso
-
-Tratamento de Erros Completo:
-
-Mensagens claras para o usuário
-
-Detecção de problemas específicos
-
-Recuperação graciosa de falhas
-
-Verificações Adicionais:
-Adicione este código para debug:
-
-python
-# Debug de ambiente (adicione em uma célula separada)
-if st.checkbox("Mostrar informações de debug"):
-    st.write("### Configuração do Ambiente")
-    st.json({
-        "Versão do Google API Client": googleapiclient.__version__,
-        "Pasta do Drive ID": DRIVE_FOLDER_ID,
-        "Tamanho das fotos": [f.size for f in fotos] if fotos else [],
-        "Credenciais válidas": creds.valid if creds else False
-    })
-Verifique no Google Cloud Console:
-
-Ative a API Google Drive
-
-Verifique as quotas de uso
-
-Confira as permissões da conta de serviço
-
-Esta solução resolve:
-
-Problemas com fotos grandes
-
-Timeouts na API
-
-Erros de permissão
-
-Falhas de conexão temporárias
+            st.warning(f"Falha ao enviar e-mail: {str(e)}")
+    else:
+        st.error("Falha ao salvar PDF no Google Drive.")
