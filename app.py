@@ -25,8 +25,8 @@ from googleapiclient.http import MediaIoBaseUpload
 # Deve ser o primeiro comando
 st.set_page_config(page_title="Diário de Obra - RDV", layout="centered")
 
-# Carregar credenciais do Google
-creds_dict = json.loads(st.secrets["GOOGLE_CREDENTIALS"])
+# ✅ Carregar credenciais do Google a partir dos secrets
+creds_dict = st.secrets["google_service_account"]
 creds = service_account.Credentials.from_service_account_info(
     creds_dict,
     scopes=["https://www.googleapis.com/auth/drive"]
@@ -34,6 +34,7 @@ creds = service_account.Credentials.from_service_account_info(
 
 service = build("drive", "v3", credentials=creds)
 DRIVE_FOLDER_ID = "1Mao9NODndNFYn7WQzYsgdhR0lA5CXxT"  # <- sua pasta do Drive
+
 
 # Leitura de CSVs
 colab_df = pd.read_csv("colaboradores.csv")
