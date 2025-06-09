@@ -33,7 +33,7 @@ creds = service_account.Credentials.from_service_account_info(
 )
 
 service = build("drive", "v3", credentials=creds)
-DRIVE_FOLDER_ID = "1Mao9NODndNFYn7WQzYsgdhR0lA5CXxT"  # <- sua pasta do Drive
+DRIVE_FOLDER_ID = "1BUgZRcBrKksC3eUytoJ5mv_nhMRdAv1d"  # <- sua pasta do Drive
 
 
 # Leitura de CSVs
