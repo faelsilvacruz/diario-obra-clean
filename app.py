@@ -1,4 +1,3 @@
-# ✅ IMPORTS
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -20,7 +19,7 @@ import shutil
 # Google API imports
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload # <-- CORREÇÃO AQUI
+from googleapiclient.http import MediaIoBaseUpload
 from googleapiclient.errors import HttpError
 
 # Autenticação de Usuário imports
@@ -314,83 +313,83 @@ def draw_footer(c, width, margem, current_y, registro):
 # ✅ FUNÇÃO DE GERAÇÃO DE PDF PRINCIPAL
 def gerar_pdf(registro, fotos_paths):
     """
-    Gera o relatório diário de obra em formato PDF, incluindo os dados
-    do formulário e as fotos processadas, usando o novo layout.
+    Generates the daily work report in PDF format, including form data
+    and processed photos, using the new layout.
     """
-    buffer = io.BytesIO() # Buffer em memória para o PDF
+    buffer = io.BytesIO() # Buffer in memory for the PDF
 
     try:
         c = canvas.Canvas(buffer, pagesize=A4)
         width, height = A4
         margem = 30
 
-        # --- Desenha o Cabeçalho ---
+        # --- Draw Header ---
         draw_header(c, width, height, LOGO_PDF_PATH)
-        y = height - 100 # Inicia o conteúdo abaixo do cabeçalho
+        y = height - 100 # Start content below the header
 
-        # --- Desenha Tabela de Dados Principais (Obra, Local, Data, Contrato) ---
+        # --- Draw Main Data Table (Work, Location, Date, Contract) ---
         y = draw_info_table(c, registro, width, height, y, margem)
         
-        # --- SEÇÃO SERVIÇOS EXECUTADOS / ANOTAÇÕES DA EMPRESA ---
+        # --- EXECUTED SERVICES / COMPANY NOTES SECTION ---
         c.setFont("Helvetica-Bold", 10)
-        # Centraliza o título da seção
+        # Center the section title
         c.drawCentredString(width / 2, y - 10, "Serviços Executados / Anotações da Empresa")
-        c.setFont("Helvetica", 10) # Volta para fonte normal
-        y -= 25 # Espaço após o título da seção
+        c.setFont("Helvetica", 10) # Back to normal font
+        y -= 25 # Space after the section title
 
         # (1) CLIMA
-        box_clima_h = 20 # Altura fixa para a caixa de clima
+        box_clima_h = 20 # Fixed height for weather box
         c.rect(margem, y - box_clima_h, width - 2*margem, box_clima_h)
         c.drawString(margem + 5, y - 15, f"(1)- CLIMA: {registro.get('Clima', 'N/A')}")
-        y -= (box_clima_h + 5) # Atualiza Y para o próximo elemento
+        y -= (box_clima_h + 5) # Update Y for the next element
 
-        # (2) MÁQUINAS E EQUIPAMENTOS
-        box_maquinas_h = 60 # Altura da caixa para máquinas
+        # (2) MACHINERY AND EQUIPMENT
+        box_maquinas_h = 60 # Height of the box for machines
         c.rect(margem, y - box_maquinas_h, width - 2*margem, box_maquinas_h)
         c.drawString(margem + 5, y - 15, "(2)- MÁQUINAS E EQUIPAMENTOS:")
-        y_text_maquinas = y - 30 # Posição Y para o texto dentro da caixa
-        # Usa draw_text_area_with_wrap para o conteúdo
+        y_text_maquinas = y - 30 # Y position for text inside the box
+        # Use draw_text_area_with_wrap for content
         draw_text_area_with_wrap(c, registro.get('Máquinas', 'Nenhuma máquina/equipamento informado.'), margem + 15, y_text_maquinas, (width - 2*margem) - 20, line_height=12)
         y -= (box_maquinas_h + 5)
 
-        # (3) SERVIÇOS EXECUTADOS
-        box_servicos_h = 100 # Altura da caixa para serviços
+        # (3) EXECUTED SERVICES
+        box_servicos_h = 100 # Height of the box for services
         c.rect(margem, y - box_servicos_h, width - 2*margem, box_servicos_h)
         c.drawString(margem + 5, y - 15, "(3)- SERVIÇOS EXECUTADOS:")
         y_text_servicos = y - 30
         draw_text_area_with_wrap(c, registro.get('Serviços', 'Nenhum serviço executado informado.'), margem + 15, y_text_servicos, (width - 2*margem) - 20, line_height=12)
         y -= (box_servicos_h + 5)
 
-        # --- Desenha Tabela de Efetivo de Pessoal ---
+        # --- Draw Personnel Table ---
         c.setFont("Helvetica-Bold", 10)
         c.drawString(margem, y - 10, "(4)- EFETIVO DE PESSOAL")
         y -= 25
         y = draw_efetivo_table(c, registro.get("Efetivo", "[]"), width, height, y, margem) 
 
-        # --- SEÇÃO (5) OUTRAS OCORRÊNCIAS ---
+        # --- (5) OTHER OCCURRENCES SECTION ---
         c.setFont("Helvetica-Bold", 10)
         c.drawString(margem, y - 10, "(5)- OUTRAS OCORRÊNCIAS:")
         c.setFont("Helvetica", 10)
         y -= 25
         
-        box_ocorrencias_h = 60 # Altura da caixa para ocorrências
+        box_ocorrencias_h = 60 # Height of the box for occurrences
         c.rect(margem, y - box_ocorrencias_h, width - 2*margem, box_ocorrencias_h)
         y_text_ocorrencias = y - 15
         draw_text_area_with_wrap(c, registro.get('Ocorrências', 'Nenhuma ocorrência informada.'), margem + 5, y_text_ocorrencias, (width - 2*margem) - 10, line_height=12)
         y -= (box_ocorrencias_h + 10)
 
-        # --- SEÇÃO ANOTAÇÕES DA FISCALIZAÇÃO ---
+        # --- INSPECTION NOTES SECTION ---
         c.setFont("Helvetica-Bold", 10)
         c.drawCentredString(width / 2, y - 10, "ANOTAÇÕES DA FISCALIZAÇÃO")
         c.setFont("Helvetica", 10)
         y -= 25
         
-        box_fiscalizacao_h = 80 # Altura da caixa para fiscalização
+        box_fiscalizacao_h = 80 # Height of the box for inspection
         c.rect(margem, y - box_fiscalizacao_h, width - 2*margem, box_fiscalizacao_h)
         c.drawString(margem + 5, y - box_fiscalizacao_h + 10, f"Nome da Fiscalização: {registro.get('Fiscalização', 'N/A')}")
         y -= (box_fiscalizacao_h + 10)
 
-        # --- SEÇÃO MAPA PLUVIOMÉTRICO ---
+        # --- PLUVIOMETRIC MAP SECTION ---
         c.setFont("Helvetica-Bold", 10)
         c.drawCentredString(width / 2, y - 10, "Mapa Pluviométrico")
         c.setFont("Helvetica", 10)
@@ -437,85 +436,85 @@ def gerar_pdf(registro, fotos_paths):
             c.setFillColor(black)
             c.drawString(legend_x_offset + 15, legend_y_start - (i * 15) + 2, text) # Desenha o texto da legenda
 
-        # --- Desenha o Rodapé ---
-        # Passa a posição Y atual para o rodapé verificar se precisa de nova página
+        # --- Draw Footer ---
+        # Pass the current Y position to the footer to check if a new page is needed
         draw_footer(c, width, margem, y, registro) 
 
-        # --- Adição de Fotos (em novas páginas) ---
+        # --- Adding Photos (on new pages) ---
         for i, foto_path in enumerate(fotos_paths):
             try:
-                # Verifica se o arquivo da foto existe antes de tentar carregar
+                # Check if the photo file exists before trying to load
                 if not Path(foto_path).exists():
-                    st.warning(f"A foto '{Path(foto_path).name}' não foi encontrada no caminho temporário e será ignorada no PDF.")
+                    st.warning(f"The photo '{Path(foto_path).name}' was not found in the temporary path and will be ignored in the PDF.")
                     continue
 
-                c.showPage() # Começa uma nova página para cada foto
+                c.showPage() # Start a new page for each photo
                 y_foto = height - margem
                 c.setFont("Helvetica-Bold", 12)
                 c.drawString(margem, y_foto, f"📷 Foto {i+1}: {Path(foto_path).name}")
                 c.setFont("Helvetica", 10)
-                y_foto -= 20 # Espaço para o nome da foto
+                y_foto -= 20 # Space for the photo name
 
-                img = PILImage.open(foto_path) # Abre a imagem do caminho temporário
+                img = PILImage.open(foto_path) # Open the image from the temporary path
                 
-                # Lógica para redimensionar a imagem para caber na página sem distorção
+                # Logic to resize the image to fit the page without distortion
                 img_width, img_height = img.size
                 max_img_width = width - 2 * margem
-                max_img_height = height - 2 * margem - (height - y_foto) # Altura disponível abaixo do título da foto
+                max_img_height = height - 2 * margem - (height - y_foto) # Available height below the photo title
 
-                # Calcula as novas dimensões mantendo a proporção
+                # Calculate new dimensions while maintaining aspect ratio
                 aspect_ratio = img_width / img_height
                 
                 new_width = img_width
                 new_height = img_height
 
                 if img_width > max_img_width or img_height > max_img_height:
-                    if (max_img_width / aspect_ratio) <= max_img_height: # Limite pela largura
+                    if (max_img_width / aspect_ratio) <= max_img_height: # Limit by width
                         new_width = max_img_width
                         new_height = max_img_width / aspect_ratio
-                    else: # Limite pela altura
+                    else: # Limit by height
                         new_height = max_img_height
                         new_width = max_img_height * aspect_ratio
-                    img = img.resize((int(new_width), int(new_height)), PILImage.Resampling.LANCZOS) # Redimensiona com alta qualidade
+                    img = img.resize((int(new_width), int(new_height)), PILImage.Resampling.LANCZOS) # Resize with high quality
                 
-                # Calcula a posição X para centralizar a imagem horizontalmente
+                # Calculate X position to center the image horizontally
                 x_pos_img = margem + (max_img_width - new_width) / 2
                 
-                # Calcula a posição Y para desenhar a imagem abaixo do nome da foto e com margem
+                # Calculate Y position to draw the image below the photo name and with margin
                 img_y_pos = y_foto - new_height - 10 
                 
-                # Desenha a imagem no PDF
+                # Draw the image in the PDF
                 c.drawImage(ImageReader(img), x_pos_img, img_y_pos, width=new_width, height=new_height)
 
-            except Exception as e:
-                st.warning(f"Erro ao adicionar a foto '{Path(foto_path).name}' ao PDF: {str(e)}. A foto será ignorada.")
-                continue # Continua para a próxima foto
+            except Exception as img_error:
+                st.warning(f"Error adding photo '{Path(foto_path).name}' to PDF: {str(img_error)}. The photo will be ignored.")
+                continue # Continue to the next photo
 
-        c.save() # Salva todas as operações no PDF
-        buffer.seek(0) # Retorna o ponteiro para o início do buffer para que possa ser lido
+        c.save() # Save all operations to the PDF
+        buffer.seek(0) # Return pointer to the beginning of the buffer so it can be read
         return buffer
 
     except Exception as e:
-        st.error(f"Erro crítico ao gerar o documento PDF: {str(e)}")
-        return None # Retorna None em caso de falha crítica na geração do PDF
+        st.error(f"Critical error generating the PDF document: {str(e)}")
+        return None # Return None in case of critical PDF generation failure
 
 
 # ✅ FUNÇÃO DE PROCESSAMENTO DE FOTOS
 def processar_fotos(fotos_upload, obra_nome, data_relatorio):
     """
-    Processa fotos, redimensiona, salva temporariamente no disco
-    e retorna os caminhos dos arquivos processados.
+    Processes photos, resizes, temporarily saves them to disk,
+    and returns the paths of the processed files.
     """
     fotos_processadas_paths = []
     temp_dir_path_obj = None
 
     try:
         temp_dir_path_obj = Path(tempfile.mkdtemp(prefix="diario_obra_"))
-        st.info(f"Diretório temporário criado para fotos: {temp_dir_path_obj}")
+        st.info(f"Temporary directory created for photos: {temp_dir_path_obj}")
 
         for i, foto_file in enumerate(fotos_upload):
             if foto_file is None:
-                st.warning(f"Foto {i+1} enviada está vazia e será ignorada.")
+                st.warning(f"Uploaded photo {i+1} is empty and will be ignored.")
                 continue
 
             try:
@@ -523,35 +522,34 @@ def processar_fotos(fotos_upload, obra_nome, data_relatorio):
                 nome_foto_final = f"{nome_foto_base}{Path(foto_file.name).suffix}"
                 caminho_foto_temp = temp_dir_path_obj / nome_foto_final
                 
-                st.info(f"Tentando salvar foto {i+1} ({foto_file.name}) em: {caminho_foto_temp}")
+                st.info(f"Attempting to save photo {i+1} ({foto_file.name}) to: {caminho_foto_temp}")
 
                 with open(caminho_foto_temp, "wb") as f:
                     f.write(foto_file.getbuffer())
 
                 if not caminho_foto_temp.exists():
-                    raise FileNotFoundError(f"Arquivo temporário da foto {i+1} não foi criado em {caminho_foto_temp}")
+                    raise FileNotFoundError(f"Temporary file for photo {i+1} was not created at {caminho_foto_temp}")
                 
-                st.info(f"Foto {i+1} salva temporariamente. Tamanho: {caminho_foto_temp.stat().st_size} bytes.")
+                st.info(f"Photo {i+1} temporarily saved. Size: {caminho_foto_temp.stat().st_size} bytes.")
 
                 img = PILImage.open(caminho_foto_temp)
-                img.thumbnail((1200, 1200), PILImage.Resampling.LANCZOS)  # Redimensiona mantendo a proporção com qualidade
-                img.save(caminho_foto_temp, "JPEG", quality=85) # Salva como JPEG com compressão
+                img.thumbnail((1200, 1200), PILImage.Resampling.LANCZOS)  # Resize keeping aspect ratio with quality
+                img.save(caminho_foto_temp, "JPEG", quality=85) # Save as JPEG with compression
 
                 fotos_processadas_paths.append(str(caminho_foto_temp))
-                st.info(f"Foto {i+1} processada e pronta: {caminho_foto_temp}")
+                st.info(f"Photo {i+1} processed and ready: {caminho_foto_temp}")
 
             except Exception as img_error:
-                st.warning(f"Falha ao processar foto {i+1} ({foto_file.name}): {str(img_error)}. Esta foto será ignorada no PDF.")
+                st.warning(f"Failed to process photo {i+1} ({foto_file.name}): {str(img_error)}. This photo will be ignored in the PDF.")
                 continue
 
         return fotos_processadas_paths
         
     except Exception as e:
-        st.error(f"Erro crítico no processamento inicial das fotos: {str(e)}")
-        # temp_dir_obj precisa ser o mesmo que temp_dir_path_obj
-        if temp_dir_path_obj and temp_dir_path_obj.exists(): # Correção: usar temp_dir_path_obj
+        st.error(f"Critical error in initial photo processing: {str(e)}")
+        if temp_dir_path_obj and temp_dir_path_obj.exists():
             shutil.rmtree(temp_dir_path_obj)
-            st.warning(f"Diretório temporário {temp_dir_path_obj} limpo devido a erro crítico no processamento inicial das fotos.")
+            st.warning(f"Temporary directory {temp_dir_path_obj} cleaned due to critical error in initial photo processing.")
         return []
 
 
@@ -765,9 +763,40 @@ if st.session_state.logged_in:
 
         st.title("Relatório Diário de Obra - RDV Engenharia")
 
+        # ✅ NOVO LOCAL DO SLIDER (FORA DO FORM)
+        st.subheader("Efetivo de Pessoal") # Mudei para fora do form para ficar com o slider
+
+        # Inicializa o session_state para qtd_colaboradores se ainda não existe
+        if 'qtd_colaboradores_slider' not in st.session_state:
+            st.session_state.qtd_colaboradores_slider = 0
+
+        # Carrega colaboradores para o slider, se necessário para o max_value dinâmico
+        try:
+            colab_df_for_slider = pd.read_csv("colaboradores.csv")
+            max_colabs_slider = len(colab_df_for_slider) if not colab_df_for_slider.empty else 20
+        except Exception:
+            max_colabs_slider = 20 # Valor padrão se colaboradores.csv falhar
+
+        # O st.slider atualiza o valor no session_state diretamente
+        # AGORA FORA DO FORMULÁRIO, PODE TER on_change
+        st.slider(
+            "Quantos colaboradores hoje?",
+            min_value=0,
+            max_value=max_colabs_slider, # Pode ser dinâmico ou um valor fixo alto
+            value=st.session_state.qtd_colaboradores_slider, # Usa o valor do session_state
+            step=1,
+            key="num_colabs_slider_main", # Chave principal do slider
+            on_change=lambda: st.session_state.update(qtd_colaboradores_slider=st.session_state.num_colabs_slider_main)
+        )
+        
+        # Agora, o loop de renderização usa o valor do session_state
+        # Este valor será persistente entre as re-execuções
+        qtd_colaboradores_para_renderizar = st.session_state.qtd_colaboradores_slider
+
+
         # Usamos st.form para agrupar os inputs
         with st.form(key="relatorio_form", clear_on_submit=False):
-            st.subheader("Dados Gerais da Obra")
+            st.subheader("Dados Gerais da Obra") # Voltou para dentro do form
             obra = st.selectbox("Obra", obras_lista)
             local = st.text_input("Local")
             data = st.date_input("Data", value=datetime.today())
@@ -776,10 +805,8 @@ if st.session_state.logged_in:
             maquinas = st.text_area("Máquinas e equipamentos utilizados")
             servicos = st.text_area("Serviços executados no dia")
 
-            # --- SEÇÃO EFETIVO DE PESSOAL (COM ST.SLIDER E CONTAINER) ---
-            st.subheader("Efetivo de Pessoal")
-            
-            # Carrega colaboradores com tratamento de erro
+            # --- SEÇÃO EFETIVO DE PESSOAL - RESTO DA LÓGICA DENTRO DO FORM ---
+            # Carrega colaboradores para os selectboxes internos
             try:
                 colab_df = pd.read_csv("colaboradores.csv")
                 colaboradores_lista = colab_df["Nome"].tolist()
@@ -787,44 +814,17 @@ if st.session_state.logged_in:
                 colaboradores_lista = []
                 st.warning("Não foi possível carregar a lista de colaboradores (arquivo 'colaboradores.csv' não encontrado ou inválido).")
 
-            # ✅ ALTERAÇÃO AQUI: USAR SESSION_STATE PARA O SLIDER
-            # A key garante que o widget é identificado.
-            # O on_change garante que o valor é salvo no session_state imediatamente.
-            
-            # Inicializa o session_state para qtd_colaboradores se ainda não existe
-            if 'qtd_colaboradores_slider' not in st.session_state:
-                st.session_state.qtd_colaboradores_slider = 0
-
-            # O st.slider atualiza o valor no session_state diretamente
-            st.slider(
-                "Quantos colaboradores hoje?",
-                min_value=0,
-                max_value=20,
-                value=st.session_state.qtd_colaboradores_slider, # Usa o valor do session_state
-                step=1,
-                key="num_colabs_slider_main", # Chave principal do slider
-                on_change=lambda: st.session_state.update(qtd_colaboradores_slider=st.session_state.num_colabs_slider_main)
-                # O on_change é essencial aqui para garantir que a mudança do slider
-                # force uma re-execução e atualize o session_state.
-            )
-            
-            # Agora, o loop de renderização usa o valor do session_state
-            qtd_colaboradores_para_renderizar = st.session_state.qtd_colaboradores_slider
-
             efetivo_container = st.container()
             efetivo_lista = []
 
             with efetivo_container:
-                for i in range(qtd_colaboradores_para_renderizar): # ✅ USA O VALOR DO SESSION_STATE
+                for i in range(qtd_colaboradores_para_renderizar): # Usa o valor do session_state
                     with st.expander(f"Colaborador {i+1}", expanded=True):
                         options_for_selectbox = [""] + colaboradores_lista if colaboradores_lista else ["Nenhum colaborador disponível"]
-                        # É importante que as chaves dos widgets internos sejam consistentes
-                        # para preservar o estado quando o número de colaboradores muda.
-                        # NÂO use timestamp nessas chaves, apenas no slider se necessário.
                         nome = st.selectbox(
                             "Nome",
                             options=options_for_selectbox,
-                            key=f"colab_nome_{i}" # Chave consistente
+                            key=f"colab_nome_{i}"
                         )
                         
                         funcao = ""
@@ -834,7 +834,7 @@ if st.session_state.logged_in:
                         funcao = st.text_input(
                             "Função",
                             value=funcao,
-                            key=f"colab_funcao_{i}" # Chave consistente
+                            key=f"colab_funcao_{i}"
                         )
                         
                         col1_time, col2_time = st.columns(2)
@@ -842,13 +842,13 @@ if st.session_state.logged_in:
                             entrada = st.time_input(
                                 "Entrada",
                                 value=datetime.strptime("08:00", "%H:%M").time(),
-                                key=f"colab_entrada_{i}" # Chave consistente
+                                key=f"colab_entrada_{i}"
                             )
                         with col2_time:
                             saida = st.time_input(
                                 "Saída",
                                 value=datetime.strptime("17:00", "%H:%M").time(),
-                                key=f"colab_saida_{i}" # Chave consistente
+                                key=f"colab_saida_{i}"
                             )
                         
                         efetivo_lista.append({
@@ -865,7 +865,7 @@ if st.session_state.logged_in:
             nome_fiscal = st.text_input("Nome da fiscalização")
             fotos = st.file_uploader("Fotos do serviço", accept_multiple_files=True, type=["png", "jpg", "jpeg"])
 
-            # ✅ BOTÃO DE SUBMISSÃO - DENTRO DO FORM
+            # BOTÃO DE SUBMISSÃO - DENTRO DO FORM (PERMANECE AQUI)
             submitted = st.form_submit_button("Salvar e Gerar Relatório")
 
         # ✅ LÓGICA DE PROCESSAMENTO APÓS SUBMIT (fora do form)
