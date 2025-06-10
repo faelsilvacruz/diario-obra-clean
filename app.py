@@ -299,18 +299,22 @@ def gerar_pdf(registro, fotos_paths):
         draw_header(c, width, height, LOGO_PDF_PATH)
         y = height - 100
 
+        # 1. Primeiro desenha os dados gerais
         y = draw_info_table(c, registro, width, height, y, margem)
         
+        # --- EXECUTED SERVICES / COMPANY NOTES SECTION ---
         c.setFont("Helvetica-Bold", 10)
         c.drawCentredString(width / 2, y - 10, "Serviços Executados / Anotações da Empresa")
         c.setFont("Helvetica", 10)
         y -= 25
 
+        # (1) CLIMA
         box_clima_h = 20
         c.rect(margem, y - box_clima_h, width - 2*margem, box_clima_h)
         c.drawString(margem + 5, y - 15, f"(1)- CLIMA: {registro.get('Clima', 'N/A')}")
         y -= (box_clima_h + 5)
 
+        # (2) MACHINERY AND EQUIPMENT
         box_maquinas_h = 60
         c.rect(margem, y - box_maquinas_h, width - 2*margem, box_maquinas_h)
         c.drawString(margem + 5, y - 15, "(2)- MÁQUINAS E EQUIPAMENTOS:")
@@ -318,6 +322,7 @@ def gerar_pdf(registro, fotos_paths):
         draw_text_area_with_wrap(c, registro.get('Máquinas', 'Nenhuma máquina/equipamento informado.'), margem + 15, y_text_maquinas, (width - 2*margem) - 20, line_height=12)
         y -= (box_maquinas_h + 5)
 
+        # (3) EXECUTED SERVICES
         box_servicos_h = 100
         c.rect(margem, y - box_servicos_h, width - 2*margem, box_servicos_h)
         c.drawString(margem + 5, y - 15, "(3)- SERVIÇOS EXECUTADOS:")
@@ -325,11 +330,13 @@ def gerar_pdf(registro, fotos_paths):
         draw_text_area_with_wrap(c, registro.get('Serviços', 'Nenhum serviço executado informado.'), margem + 15, y_text_servicos, (width - 2*margem) - 20, line_height=12)
         y -= (box_servicos_h + 5)
 
+        # (4) Efetivo de Pessoal (como proposto)
         c.setFont("Helvetica-Bold", 10)
         c.drawString(margem, y - 10, "(4)- EFETIVO DE PESSOAL")
         y -= 25
         y = draw_efetivo_table(c, registro.get("Efetivo", "[]"), width, height, y, margem) 
 
+        # --- (5) OTHER OCCURRENCES SECTION ---
         c.setFont("Helvetica-Bold", 10)
         c.drawString(margem, y - 10, "(5)- OUTRAS OCORRÊNCIAS:")
         c.setFont("Helvetica", 10)
@@ -341,6 +348,7 @@ def gerar_pdf(registro, fotos_paths):
         draw_text_area_with_wrap(c, registro.get('Ocorrências', 'Nenhuma ocorrência informada.'), margem + 5, y_text_ocorrencias, (width - 2*margem) - 10, line_height=12)
         y -= (box_ocorrencias_h + 10)
 
+        # --- INSPECTION NOTES SECTION ---
         c.setFont("Helvetica-Bold", 10)
         c.drawCentredString(width / 2, y - 10, "ANOTAÇÕES DA FISCALIZAÇÃO")
         c.setFont("Helvetica", 10)
@@ -351,6 +359,7 @@ def gerar_pdf(registro, fotos_paths):
         c.drawString(margem + 5, y - box_fiscalizacao_h + 10, f"Nome da Fiscalização: {registro.get('Fiscalização', 'N/A')}")
         y -= (box_fiscalizacao_h + 10)
 
+        # --- PLUVIOMETRIC MAP SECTION ---
         c.setFont("Helvetica-Bold", 10)
         c.drawCentredString(width / 2, y - 10, "Mapa Pluviométrico")
         c.setFont("Helvetica", 10)
@@ -699,34 +708,6 @@ if st.session_state.logged_in:
 
         st.title("Relatório Diário de Obra - RDV Engenharia")
 
-        # --- NOVO AGRUPAMENTO: TÍTULO EFETIVO DE PESSOAL E SLIDER ---
-        # Usamos um container para agrupar visualmente o título e o slider
-        with st.container(border=True): # O border=True ajuda a visualizar o agrupamento
-            st.subheader("Efetivo de Pessoal")
-
-            if 'qtd_colaboradores_slider' not in st.session_state:
-                st.session_state.qtd_colaboradores_slider = 0
-
-            try:
-                colab_df_for_slider = pd.read_csv("colaboradores.csv")
-                max_colabs_slider = len(colab_df_for_slider) if not colab_df_for_slider.empty else 20
-            except Exception:
-                max_colabs_slider = 20
-
-            st.slider(
-                "Quantos colaboradores hoje?",
-                min_value=0,
-                max_value=max_colabs_slider,
-                value=st.session_state.qtd_colaboradores_slider,
-                step=1,
-                key="num_colabs_slider_main",
-                on_change=lambda: st.session_state.update(qtd_colaboradores_slider=st.session_state.num_colabs_slider_main)
-            )
-        # --- FIM DO NOVO AGRUPAMENTO ---
-        
-        # O valor para renderizar os expanders é pego do session_state
-        qtd_colaboradores_para_renderizar = st.session_state.qtd_colaboradores_slider
-
         # Usamos st.form para agrupar os inputs PRINCIPAIS DO RELATÓRIO
         with st.form(key="relatorio_form", clear_on_submit=False):
             st.subheader("Dados Gerais da Obra")
@@ -738,8 +719,37 @@ if st.session_state.logged_in:
             maquinas = st.text_area("Máquinas e equipamentos utilizados")
             servicos = st.text_area("Serviços executados no dia")
 
-            # ✅ CAMPOS DOS COLABORADORES (AGORA AQUI DENTRO DO FORM)
+            # AGORA ADICIONAMOS A SEÇÃO DE EFETIVO AQUI, DENTRO DO FORM, DEPOIS DOS DADOS GERAIS DA OBRA
             st.markdown("---") # Linha divisória para separar visualmente
+            with st.container(border=True): # O border=True ajuda a visualizar o agrupamento
+                st.subheader("Efetivo de Pessoal")
+
+                # Inicializa o session_state para qtd_colaboradores se ainda não existe
+                if 'qtd_colaboradores_slider' not in st.session_state:
+                    st.session_state.qtd_colaboradores_slider = 0
+
+                # Carrega colaboradores para o slider, se necessário para o max_value dinâmico
+                try:
+                    colab_df_for_slider = pd.read_csv("colaboradores.csv")
+                    max_colabs_slider = len(colab_df_for_slider) if not colab_df_for_slider.empty else 20
+                except Exception:
+                    max_colabs_slider = 20 # Valor padrão se colaboradores.csv falhar
+
+                # O st.slider atualiza o valor no session_state diretamente
+                st.slider(
+                    "Quantos colaboradores hoje?",
+                    min_value=0,
+                    max_value=max_colabs_slider,
+                    value=st.session_state.qtd_colaboradores_slider,
+                    step=1,
+                    key="num_colabs_slider_main",
+                    on_change=lambda: st.session_state.update(qtd_colaboradores_slider=st.session_state.num_colabs_slider_main)
+                )
+            
+            # O valor para renderizar os expanders é pego do session_state
+            qtd_colaboradores_para_renderizar = st.session_state.qtd_colaboradores_slider
+
+            # CAMPOS DOS COLABORADORES: continuam aqui, logo após o slider
             st.subheader("Detalhes dos Colaboradores") # Um novo subheader para os detalhes dos colaboradores
             
             try:
