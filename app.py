@@ -763,6 +763,10 @@ if st.session_state.logged_in:
 
         st.title("Relatório Diário de Obra - RDV Engenharia")
 
+        # --- SEÇÃO EFETIVO DE PESSOAL (AGORA FORA DO FORM, AGREGADA COM O SLIDER) ---
+        # Move o subheader para fora do form, para ficar junto com o slider.
+        st.subheader("Efetivo de Pessoal")
+
         # ✅ SLIDER DE COLABORADORES (PERMANECE FORA DO FORM)
         # É crucial que ele esteja fora do form para usar on_change e forçar o rerun
         
@@ -804,10 +808,7 @@ if st.session_state.logged_in:
             maquinas = st.text_area("Máquinas e equipamentos utilizados")
             servicos = st.text_area("Serviços executados no dia")
 
-            # --- SEÇÃO EFETIVO DE PESSOAL (AGORA DENTRO DO FORM, ABAIXO DOS DADOS GERAIS) ---
-            # O st.subheader volta para cá para agrupar visualmente com os campos.
-            st.subheader("Efetivo de Pessoal")
-
+            # ✅ CAMPOS DOS COLABORADORES (AGORA DENTRO DO FORM, LOGO APÓS OS DADOS GERAIS DA OBRA)
             # Carrega colaboradores para os selectboxes internos
             try:
                 colab_df = pd.read_csv("colaboradores.csv")
@@ -860,7 +861,7 @@ if st.session_state.logged_in:
                             "Entrada": entrada.strftime("%H:%M"),
                             "Saída": saida.strftime("%H:%M")
                         })
-            # --- FIM DA SEÇÃO EFETIVO DE PESSOAL ---
+            # --- FIM DA SEÇÃO EFETIVO DE PESSOAL (APENAS OS CAMPOS, O SUBHEADER ESTÁ ACIMA DO FORM) ---
 
             st.subheader("Informações Adicionais")
             ocorrencias = st.text_area("Ocorrências")
