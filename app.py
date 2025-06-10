@@ -726,47 +726,12 @@ if st.session_state.logged_in:
     
     choice = st.sidebar.selectbox("Navegar", menu)
 
-    # Função para a página do Diário de Obra
+   # Função para a página do Diário de Obra
     def render_diario_obra_page():
-        # ✅ CARREGAMENTO DE CSVs (Mantendo sua implementação atual)
-        @st.cache_data(ttl=3600) # Adicionado TTL para cache de 1 hora
-        def carregar_arquivo_csv(nome_arquivo):
-            """Carrega um arquivo CSV e verifica sua existência."""
-            if not os.path.exists(nome_arquivo):
-                st.error(f"Erro: Arquivo de dados '{nome_arquivo}' não encontrado. Por favor, verifique se os CSVs (obras.csv, contratos.csv) estão na raiz do projeto.")
-                # Não usamos st.stop() aqui dentro se for usado um try/except externo robusto
-                return pd.DataFrame() # Retorna um DataFrame vazio para evitar erros
-            try:
-                return pd.read_csv(nome_arquivo)
-            except Exception as e:
-                st.error(f"Erro ao ler o arquivo '{nome_arquivo}': {e}")
-                return pd.DataFrame() # Retorna DataFrame vazio em caso de erro de leitura
-
-        # Carrega CSVs principais e trata possíveis erros
-        try:
-            obras_df = carregar_arquivo_csv("obras.csv")
-            contratos_df = carregar_arquivo_csv("contratos.csv")
-            
-            # Se algum DataFrame essencial estiver vazio, interrompe
-            if obras_df.empty:
-                st.error("O arquivo 'obras.csv' não pôde ser carregado ou está vazio. O aplicativo não pode continuar.")
-                st.stop()
-            if contratos_df.empty:
-                st.error("O arquivo 'contratos.csv' não pôde ser carregado ou está vazio. O aplicativo não pode continuar.")
-                st.stop()
-
-        except Exception as e:
-            st.error(f"Erro ao carregar arquivos CSV essenciais: {e}")
-            st.stop() # Interrompe a execução se os arquivos essenciais não forem encontrados
-
-
-        obras_lista = [""] + obras_df["Nome"].tolist() # Adiciona opção vazia
-        contratos_lista = [""] + contratos_df["Nome"].tolist() # Adiciona opção vazia
+        # ... (seu código existente para carregar CSVs e dados gerais) ...
 
         st.title("Relatório Diário de Obra - RDV Engenharia")
 
-        # Usamos st.form para agrupar os inputs e ter um controle mais explícito do submit
-        # Adicionei `clear_on_submit=False` aqui para manter os campos preenchidos após o submit se necessário
         with st.form(key="relatorio_form", clear_on_submit=False):
             st.subheader("Dados Gerais da Obra")
             obra = st.selectbox("Obra", obras_lista)
@@ -777,37 +742,33 @@ if st.session_state.logged_in:
             maquinas = st.text_area("Máquinas e equipamentos utilizados")
             servicos = st.text_area("Serviços executados no dia")
 
-            # --- SEÇÃO EFETIVO DE PESSOAL (VERSÃO COMBINADA E CORRIGIDA) ---
+            # --- SEÇÃO EFETIVO DE PESSOAL (COM ST.SLIDER) ---
             st.subheader("Efetivo de Pessoal")
             
             # Carrega colaboradores com tratamento de erro
             try:
                 colab_df = pd.read_csv("colaboradores.csv")
                 colaboradores_lista = colab_df["Nome"].tolist()
-            except Exception: # Mais específico do que um except genérico para depuração
+            except Exception:
                 colaboradores_lista = []
                 st.warning("Não foi possível carregar a lista de colaboradores (arquivo 'colaboradores.csv' não encontrado ou inválido).")
 
-            # Widget para definir quantidade de colaboradores
-            qtd_colaboradores = st.number_input(
+            # Widget para definir quantidade de colaboradores - AGORA COM SLIDER
+            qtd_colaboradores = st.slider( # <-- MUDANÇA AQUI!
                 "Quantos colaboradores hoje?",
                 min_value=0,
-                max_value=20,
-                value=0, # Valor padrão como 0
+                max_value=20, # Ou um max_value maior se necessário
+                value=0,
                 step=1,
-                key="num_colabs"
+                key="num_colabs_slider" # Mudei a key para evitar conflito se a antiga for persistida
             )
 
-            # Container para os campos de colaboradores (boa prática para elementos dinâmicos)
             efetivo_container = st.container()
             efetivo_lista = []
 
-            # Renderiza os campos dinamicamente dentro do container
             with efetivo_container:
                 for i in range(qtd_colaboradores):
                     with st.expander(f"Colaborador {i+1}", expanded=True):
-                        # Seleção do nome
-                        # Sempre inclua uma opção vazia para resetar ou não selecionar
                         options_for_selectbox = [""] + colaboradores_lista if colaboradores_lista else ["Nenhum colaborador disponível"]
                         nome = st.selectbox(
                             "Nome",
@@ -815,19 +776,16 @@ if st.session_state.logged_in:
                             key=f"colab_nome_{i}"
                         )
                         
-                        # Sugestão de função (agora mais robusta)
                         funcao = ""
                         if nome and not colab_df.empty and nome in colab_df["Nome"].values:
                             funcao = colab_df.loc[colab_df["Nome"] == nome, "Função"].values[0]
                         
-                        # Campo de função
                         funcao = st.text_input(
                             "Função",
                             value=funcao,
                             key=f"colab_funcao_{i}"
                         )
                         
-                        # Horários em colunas
                         col1_time, col2_time = st.columns(2)
                         with col1_time:
                             entrada = st.time_input(
@@ -842,7 +800,6 @@ if st.session_state.logged_in:
                                 key=f"colab_saida_{i}"
                             )
                         
-                        # Adiciona à lista
                         efetivo_lista.append({
                             "Nome": nome,
                             "Função": funcao,
@@ -850,6 +807,8 @@ if st.session_state.logged_in:
                             "Saída": saida.strftime("%H:%M")
                         })
             # --- FIM DA SEÇÃO EFETIVO DE PESSOAL ---
+
+            # ... (resto do seu código para Informações Adicionais e o botão de submit) ...
 
             st.subheader("Informações Adicionais")
             ocorrencias = st.text_area("Ocorrências")
