@@ -335,16 +335,77 @@ def upload_para_drive_seguro(pdf_buffer, nome_arquivo):
         st.error(f"Erro inesperado ao tentar enviar o PDF para o Google Drive: {e}")
         return None
 
+# ✅ FUNÇÃO DE ENVIO DE E-MAIL REVISADA
+def enviar_email(destinatarios, assunto, corpo_html, drive_id=None):
+    """
+    Envia e-mail com tratamento robusto de erros usando Yagmail.
+    Espera um corpo de e-mail já em formato HTML.
+    """
+    try:
+        # Configuração do Yagmail com parâmetros explícitos para maior compatibilidade
+        yag = yagmail.SMTP(
+            user=st.secrets["email"]["user"],
+            password=st.secrets["email"]["password"],
+            host='smtp.gmail.com', # Host SMTP do Gmail
+            port=587,              # Porta padrão para STARTTLS
+            smtp_starttls=True,    # Habilita STARTTLS
+            smtp_ssl=False,        # Desabilita SSL direto (pois usamos STARTTLS)
+            timeout=30             # Timeout de 30 segundos para conexão
+        )
+        
+        # Monta o corpo completo do e-mail em HTML
+        corpo_completo_final = f"""
+        <html>
+            <body>
+                {corpo_html} # Insere o HTML fornecido
+                {f'<p><a href="https://drive.google.com/file/d/{drive_id}/view">Acessar o Diário de Obra no Google Drive</a></p>' if drive_id else ''}
+                <p style="color: #888; font-size: 0.8em; margin-top: 20px;">
+                    Mensagem enviada automaticamente pelo Sistema Diário de Obra - RDV Engenharia
+                </p>
+            </body>
+        </html>
+        """
+        
+        # Envia o e-mail
+        yag.send(
+            to=destinatarios,
+            subject=assunto,
+            contents=corpo_completo_final,
+            # Adiciona um cabeçalho personalizado, útil para filtros ou auditoria
+            headers={'X-Application': 'DiarioObraRDV'} 
+        )
+        return True
+        
+    except KeyError:
+        st.error("Erro: Credenciais de e-mail não encontradas em '.streamlit/secrets.toml'. Por favor, verifique.")
+        return False
+    except Exception as e:
+        # Erros específicos do SMTP (como autenticação falha) são úteis para depuração
+        st.error(f"Falha no envio do e-mail: {str(e)}")
+        return False
+
 
 # ✅ LÓGICA DE EXECUÇÃO DO RELATÓRIO
-# As variáveis temp_dir_obj e fotos_paths_to_clean precisam ser inicializadas fora do try
-# para que o bloco finally possa acessá-las.
+# As variáveis temp_dir_obj_for_cleanup e fotos_processed_paths precisam ser inicializadas fora do try
+# para que o bloco finally possa acessá-las corretamente.
 temp_dir_obj_for_cleanup = None 
+fotos_processed_paths = [] # Inicializa como lista vazia
 
 if submitted:
     # Este bloco try-except-finally gerencia todo o fluxo do relatório
     # e garante a limpeza dos arquivos temporários no final.
     try:
+        # Validações básicas antes de prosseguir
+        if not obra or obra == "":
+            st.error("Por favor, selecione a 'Obra'.")
+            st.stop()
+        if not contrato or contrato == "":
+            st.error("Por favor, selecione o 'Contrato'.")
+            st.stop()
+        if not nome_empresa:
+            st.error("Por favor, preencha o campo 'Responsável pela empresa'.")
+            st.stop()
+
         # Registro de dados do formulário
         registro = {
             "Obra": obra,
@@ -362,15 +423,12 @@ if submitted:
 
         # --- Processamento das Fotos ---
         with st.spinner("Processando fotos... Isso pode levar alguns segundos..."):
-            # A função processar_fotos agora retorna os caminhos temporários e o objeto Path do diretório temporário
-            # Precisamos capturar o temp_dir_path_obj para limpar no finally global.
             fotos_processed_paths = processar_fotos(fotos, obra, data) if fotos else []
             
-            # Se a função processar_fotos criou um diretório temporário, vamos pegá-lo
-            # para garantir que ele seja limpo no final, mesmo que não haja fotos processadas com sucesso.
+            # Captura o diretório temporário para limpeza, se fotos foram processadas
             if fotos_processed_paths:
                 temp_dir_obj_for_cleanup = Path(fotos_processed_paths[0]).parent
-            elif fotos: # Se o usuário enviou fotos, mas nenhuma foi processada
+            elif fotos: # Se o usuário enviou fotos, mas nenhuma foi processada com sucesso
                 st.warning("⚠️ Nenhuma foto foi processada corretamente. O PDF pode não conter imagens.")
             
         # --- Geração do PDF ---
@@ -392,6 +450,7 @@ if submitted:
         )
 
         # --- Upload para Google Drive ---
+        drive_id = None # Inicializa drive_id como None
         with st.spinner("Enviando relatório para o Google Drive..."):
             # O pdf_buffer já está com o ponteiro no início após o download_button
             drive_id = upload_para_drive_seguro(pdf_buffer, nome_pdf)
@@ -400,41 +459,38 @@ if submitted:
                 st.success(f"PDF salvo com sucesso no Google Drive! ID: {drive_id}")
                 st.markdown(f"**[Clique aqui para abrir no Google Drive](https://drive.google.com/file/d/{drive_id}/view)**")
 
-                # --- Envio de E-mail ---
+                # --- Envio de E-mail de Notificação ---
                 with st.spinner("Enviando e-mail de notificação..."):
-                    try:
-                        # As credenciais do Yagmail são carregadas dos segredos do Streamlit
-                        yag_user = st.secrets["email"]["user"]
-                        yag_password = st.secrets["email"]["password"]
-
-                        yag = yagmail.SMTP(user=yag_user, password=yag_password)
-                        
-                        corpo = f"""
-Olá, equipe RDV!
-
-Um novo Diário de Obra foi preenchido com sucesso através do sistema.
-
-**Detalhes do Diário:**
-Obra: {obra}
-Data: {data.strftime('%d/%m/%Y')}
-Responsável: {nome_empresa}
-
-Você pode acessar o relatório diretamente no Google Drive através do link abaixo:
-{os.linesep}https://drive.google.com/file/d/{drive_id}/view{os.linesep}
-
-Atenciosamente,
-Sistema Diário de Obra - RDV Engenharia
-"""
-                        yag.send(
-                            to=["comercial@rdvengenharia.com.br", "administrativo@rdvengenharia.com.br"], # Destinatários fixos
-                            subject=f"Novo Diário de Obra - {obra} ({data.strftime('%d/%m/%Y')})", # Assunto do e-mail
-                            contents=corpo # Conteúdo do e-mail
-                        )
-                        st.success("E-mail de notificação enviado com sucesso para a diretoria!")
-                    except KeyError:
-                        st.warning("Credenciais de e-mail não encontradas em '.streamlit/secrets.toml'. O e-mail de notificação não foi enviado.")
-                    except Exception as e:
-                        st.warning(f"Falha ao enviar o e-mail de notificação: {str(e)}. Verifique se as credenciais do Yagmail estão corretas (especialmente a senha de aplicativo para contas Gmail).")
+                    assunto_email = f"📋 Novo Diário de Obra - {obra} ({data.strftime('%d/%m/%Y')})"
+                    
+                    # Corpo do e-mail em HTML (já com tags HTML como seu amigo sugeriu)
+                    corpo_email_html = f"""
+                    <p>Olá, equipe RDV!</p>
+                    <p>O diário de obra foi preenchido com sucesso:</p>
+                    <ul>
+                        <li><strong>Obra:</strong> {obra}</li>
+                        <li><strong>Local:</strong> {local}</li>
+                        <li><strong>Data:</strong> {data.strftime('%d/%m/%Y')}</li>
+                        <li><strong>Responsável:</strong> {nome_empresa}</li>
+                    </ul>
+                    """
+                    
+                    destinatarios_email = [
+                        "comercial@rdvengenharia.com.br",
+                        "administrativo@rdvengenharia.com.br"
+                    ]
+                    
+                    if enviar_email(destinatarios_email, assunto_email, corpo_email_html, drive_id):
+                        st.success("📨 E-mail de notificação enviado com sucesso!")
+                    else:
+                        st.warning("""
+                        ⚠️ O PDF foi salvo no Google Drive, mas o e-mail de notificação não foi enviado.
+                        Por favor, verifique os detalhes do erro acima ou nos logs para depuração.
+                        **Possíveis soluções:**
+                        1. Verifique sua conexão com a internet.
+                        2. Confira as configurações de e-mail (usuário e senha) no seu arquivo `.streamlit/secrets.toml`.
+                        3. Certifique-se de estar usando uma **Senha de Aplicativo (App Password)** do Gmail para a senha, se a Verificação em Duas Etapas estiver ativada na sua conta de e-mail.
+                        """)
             else:
                 st.error("O upload para o Google Drive falhou. O e-mail de notificação não foi enviado.")
 
