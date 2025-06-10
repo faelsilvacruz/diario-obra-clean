@@ -20,7 +20,7 @@ import shutil
 # Google API imports
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
+from googleapiclient.http import MediaIoBaseUpload # <-- CORREÇÃO AQUI
 from googleapiclient.errors import HttpError
 
 # Autenticação de Usuário imports
@@ -29,13 +29,13 @@ import hashlib
 import base64
 
 # ✅ CONSTANTES
-DRIVE_FOLDER_ID = "1BUgZRcBrKksC3eUytoJ5mv_nhMRdAv1d" # ID da pasta no Google Drive
+DRIVE_FOLDER_ID = "1BUgZRcBrKksC3eUytoJ5mv_nhMRcAv1d" # ID da pasta no Google Drive
 LOGO_LOGIN_PATH = "LOGO RDV AZUL.jpeg" # Para a tela de login
 LOGO_PDF_PATH = "LOGO_RDV_AZUL-sem fundo.png" # Para o cabeçalho do PDF
 
 # Para o ícone da página, usaremos a mesma logo do PDF temporariamente
 # ou você pode criar um "favicon.png" pequeno (e mudar esta linha para "favicon.png")
-LOGO_ICON_PATH = "LOGO_RDV_AZUL-sem fundo.png" 
+LOGO_ICON_PATH = "LOGO_RDV_AZUL-sem fundo.png"
 
 
 # ✅ FUNÇÃO PARA CARREGAR IMAGEM COMO BASE64 (PARA LOGIN)
@@ -91,7 +91,7 @@ def load_page_icon():
                 return None
         
         st.warning(f"Nenhum arquivo de imagem válido encontrado para o ícone ({LOGO_ICON_PATH} ou {LOGO_PDF_PATH}).")
-        return None # Retorna None se nenhuma imagem puder ser carregada
+        return None
 
 # ✅ CONFIGURAÇÃO DA PÁGINA STREAMLIT (COM TRATAMENTO DE ERRO)
 # Esta variável será usada para armazenar o caminho do arquivo temporário do ícone
@@ -548,9 +548,10 @@ def processar_fotos(fotos_upload, obra_nome, data_relatorio):
         
     except Exception as e:
         st.error(f"Erro crítico no processamento inicial das fotos: {str(e)}")
-        if temp_dir_path_obj and temp_dir_obj.exists():
+        # temp_dir_obj precisa ser o mesmo que temp_dir_path_obj
+        if temp_dir_path_obj and temp_dir_path_obj.exists(): # Correção: usar temp_dir_path_obj
             shutil.rmtree(temp_dir_path_obj)
-            st.warning(f"Diretório temporário {temp_dir_obj_for_cleanup} limpo devido a erro crítico no processamento inicial das fotos.")
+            st.warning(f"Diretório temporário {temp_dir_path_obj} limpo devido a erro crítico no processamento inicial das fotos.")
         return []
 
 
@@ -726,12 +727,45 @@ if st.session_state.logged_in:
     
     choice = st.sidebar.selectbox("Navegar", menu)
 
-   # Função para a página do Diário de Obra
+    # Função para a página do Diário de Obra
     def render_diario_obra_page():
-        # ... (seu código existente para carregar CSVs e dados gerais) ...
+        # ✅ CARREGAMENTO DE CSVs (Movido para o início da função, antes do formulário)
+        @st.cache_data(ttl=3600) # Adicionado TTL para cache de 1 hora
+        def carregar_arquivo_csv(nome_arquivo):
+            """Carrega um arquivo CSV e verifica sua existência."""
+            if not os.path.exists(nome_arquivo):
+                st.error(f"Erro: Arquivo de dados '{nome_arquivo}' não encontrado. Por favor, verifique se os CSVs estão na raiz do projeto.")
+                return pd.DataFrame() # Retorna um DataFrame vazio para evitar erros
+            try:
+                return pd.read_csv(nome_arquivo)
+            except Exception as e:
+                st.error(f"Erro ao ler o arquivo '{nome_arquivo}': {e}")
+                return pd.DataFrame() # Retorna DataFrame vazio em caso de erro de leitura
+
+        # Carrega CSVs principais e trata possíveis erros
+        try:
+            obras_df = carregar_arquivo_csv("obras.csv")
+            contratos_df = carregar_arquivo_csv("contratos.csv")
+            
+            # Se algum DataFrame essencial estiver vazio, exibe erro e para
+            if obras_df.empty:
+                st.error("O arquivo 'obras.csv' não pôde ser carregado ou está vazio. O aplicativo não pode continuar.")
+                st.stop()
+            if contratos_df.empty:
+                st.error("O arquivo 'contratos.csv' não pôde ser carregado ou está vazio. O aplicativo não pode continuar.")
+                st.stop()
+
+        except Exception as e:
+            st.error(f"Erro ao carregar arquivos CSV essenciais: {e}")
+            st.stop() # Interrompe a execução se os arquivos essenciais não forem encontrados
+
+        # Listas para os selectbox, definidas AQUI ANTES DO FORM
+        obras_lista = [""] + obras_df["Nome"].tolist()
+        contratos_lista = [""] + contratos_df["Nome"].tolist()
 
         st.title("Relatório Diário de Obra - RDV Engenharia")
 
+        # Usamos st.form para agrupar os inputs
         with st.form(key="relatorio_form", clear_on_submit=False):
             st.subheader("Dados Gerais da Obra")
             obra = st.selectbox("Obra", obras_lista)
@@ -742,25 +776,25 @@ if st.session_state.logged_in:
             maquinas = st.text_area("Máquinas e equipamentos utilizados")
             servicos = st.text_area("Serviços executados no dia")
 
-            # --- SEÇÃO EFETIVO DE PESSOAL (COM ST.SLIDER) ---
+            # --- SEÇÃO EFETIVO DE PESSOAL (COM ST.SLIDER E CONTAINER) ---
             st.subheader("Efetivo de Pessoal")
             
             # Carrega colaboradores com tratamento de erro
             try:
                 colab_df = pd.read_csv("colaboradores.csv")
                 colaboradores_lista = colab_df["Nome"].tolist()
-            except Exception:
+            except Exception: 
                 colaboradores_lista = []
                 st.warning("Não foi possível carregar a lista de colaboradores (arquivo 'colaboradores.csv' não encontrado ou inválido).")
 
-            # Widget para definir quantidade de colaboradores - AGORA COM SLIDER
-            qtd_colaboradores = st.slider( # <-- MUDANÇA AQUI!
+            # Widget para definir quantidade de colaboradores - COM SLIDER
+            qtd_colaboradores = st.slider(
                 "Quantos colaboradores hoje?",
                 min_value=0,
-                max_value=20, # Ou um max_value maior se necessário
+                max_value=20,
                 value=0,
                 step=1,
-                key="num_colabs_slider" # Mudei a key para evitar conflito se a antiga for persistida
+                key="num_colabs_slider"
             )
 
             efetivo_container = st.container()
@@ -808,26 +842,20 @@ if st.session_state.logged_in:
                         })
             # --- FIM DA SEÇÃO EFETIVO DE PESSOAL ---
 
-            # ... (resto do seu código para Informações Adicionais e o botão de submit) ...
-
             st.subheader("Informações Adicionais")
             ocorrencias = st.text_area("Ocorrências")
             nome_empresa = st.text_input("Responsável pela empresa")
             nome_fiscal = st.text_input("Nome da fiscalização")
             fotos = st.file_uploader("Fotos do serviço", accept_multiple_files=True, type=["png", "jpg", "jpeg"])
 
-            # Botão de submissão
+            # ✅ BOTÃO DE SUBMISSÃO - DENTRO DO FORM
             submitted = st.form_submit_button("Salvar e Gerar Relatório")
 
-        # ✅ LÓGICA DE EXECUÇÃO DO RELATÓRIO
-        # As variáveis temp_dir_obj_for_cleanup e fotos_processed_paths precisam ser inicializadas fora do try
-        # para que o bloco finally possa acessá-las corretamente.
+        # ✅ LÓGICA DE PROCESSAMENTO APÓS SUBMIT (fora do form)
         temp_dir_obj_for_cleanup = None 
-        fotos_processed_paths = [] # Inicializa como lista vazia
+        fotos_processed_paths = [] 
 
         if submitted:
-            # Este bloco try-except-finally gerencia todo o fluxo do relatório
-            # e garante a limpeza dos arquivos temporários no final.
             try:
                 # Validações básicas antes de prosseguir
                 if not obra or obra == "":
@@ -849,7 +877,7 @@ if st.session_state.logged_in:
                     "Clima": clima,
                     "Máquinas": maquinas,
                     "Serviços": servicos,
-                    "Efetivo": json.dumps(efetivo_lista, ensure_ascii=False), # Converte lista para JSON string
+                    "Efetivo": json.dumps(efetivo_lista, ensure_ascii=False),
                     "Ocorrências": ocorrencias,
                     "Responsável Empresa": nome_empresa,
                     "Fiscalização": nome_fiscal
@@ -872,7 +900,7 @@ if st.session_state.logged_in:
 
                     if pdf_buffer is None:
                         st.error("Falha crítica ao gerar o PDF. Por favor, tente novamente ou verifique os logs para detalhes.")
-                        st.stop() # Para a execução se o PDF não puder ser gerado
+                        st.stop()
                         
                 # --- Download do PDF ---
                 st.download_button(
@@ -880,14 +908,13 @@ if st.session_state.logged_in:
                     data=pdf_buffer,
                     file_name=nome_pdf,
                     mime="application/pdf",
-                    type="primary" # Botão primário para mais destaque
+                    type="primary"
                 )
 
                 # --- Upload para Google Drive ---
-                drive_id = None # Inicializa drive_id como None
+                drive_id = None
                 with st.spinner("Enviando relatório para o Google Drive..."):
-                    # O pdf_buffer já está com o ponteiro no início após o download_button
-                    pdf_buffer.seek(0) # Garante que o buffer está pronto para ser lido novamente
+                    pdf_buffer.seek(0)
                     drive_id = upload_para_drive_seguro(pdf_buffer, nome_pdf)
 
                     if drive_id:
@@ -898,7 +925,7 @@ if st.session_state.logged_in:
                         with st.spinner("Enviando e-mail de notificação..."):
                             assunto_email = f"📋 Novo Diário de Obra - {obra} ({data.strftime('%d/%m/%Y')})"
                             
-                            # Corpo do e-mail em HTML (já com tags HTML como seu amigo sugeriu)
+                            # Corpo do e-mail em HTML
                             corpo_email_html = f"""
                             <p>Olá, equipe RDV!</p>
                             <p>O diário de obra foi preenchido com sucesso:</p>
@@ -909,7 +936,6 @@ if st.session_state.logged_in:
                                 <li><strong>Responsável:</strong> {nome_empresa}</li>
                             </ul>
                             """
-                            
                             destinatarios_email = [
                                 "comercial@rdvengenharia.com.br",
                                 "administrativo@rdvengenharia.com.br"
