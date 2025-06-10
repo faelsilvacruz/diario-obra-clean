@@ -667,40 +667,10 @@ if st.session_state.logged_in:
     
     choice = st.sidebar.selectbox("Navegar", menu)
 
-    def render_diario_obra_page():
-        @st.cache_data(ttl=3600)
-        def carregar_arquivo_csv(nome_arquivo):
-            if not os.path.exists(nome_arquivo):
-                st.error(f"Erro: Arquivo de dados '{nome_arquivo}' não encontrado. Por favor, verifique se os CSVs estão na raiz do projeto.")
-                return pd.DataFrame()
-            try:
-                return pd.read_csv(nome_arquivo)
-            except Exception as e:
-                st.error(f"Erro ao ler o arquivo '{nome_arquivo}': {e}")
-                return pd.DataFrame()
-
-        try:
-            obras_df = carregar_arquivo_csv("obras.csv")
-            contratos_df = carregar_arquivo_csv("contratos.csv")
-            
-            if obras_df.empty:
-                st.error("O arquivo 'obras.csv' não pôde ser carregado ou está vazio. O aplicativo não pode continuar.")
-                st.stop()
-            if contratos_df.empty:
-                st.error("O arquivo 'contratos.csv' não pôde ser carregado ou está vazio. O aplicativo não pode continuar.")
-                st.stop()
-
-        except Exception as e:
-            st.error(f"Erro ao carregar arquivos CSV essenciais: {e}")
-            st.stop()
-
-        obras_lista = [""] + obras_df["Nome"].tolist()
-        contratos_lista = [""] + contratos_df["Nome"].tolist()
-
-    def render_diario_obra_page():
-        @st.cache_data(ttl=3600)
-        def carregar_arquivo_csv(nome_arquivo):
-            if not os.path.exists(nome_arquivo):
+def render_diario_obra_page():
+    @st.cache_data(ttl=3600)
+    def carregar_arquivo_csv(nome_arquivo):
+        if not os.path.exists(nome_arquivo):
             st.error(f"Erro: Arquivo de dados '{nome_arquivo}' não encontrado.")
             return pd.DataFrame()
         try:
@@ -765,6 +735,11 @@ if st.session_state.logged_in:
         fotos = st.file_uploader("Fotos do serviço", accept_multiple_files=True, type=["png", "jpg", "jpeg"])
 
         submitted = st.form_submit_button("Salvar e Gerar Relatório")
+
+    if submitted:
+        # Resto do processamento...
+        pass
+
 
         temp_dir_obj_for_cleanup = None 
         fotos_processed_paths = [] 
