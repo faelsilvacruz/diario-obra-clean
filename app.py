@@ -708,37 +708,8 @@ if st.session_state.logged_in:
 
         st.title("Relatório Diário de Obra - RDV Engenharia")
 
-        # --- SEÇÃO DO EFETIVO DE PESSOAL E SLIDER (FORA DO FORM PARA EVITAR ERRO DE CALLBACK) ---
-        # Mantemos o container para agrupamento visual
-        with st.container(border=True):
-            st.subheader("Efetivo de Pessoal")
-
-            if 'qtd_colaboradores_slider' not in st.session_state:
-                st.session_state.qtd_colaboradores_slider = 0
-
-            try:
-                colab_df_for_slider = pd.read_csv("colaboradores.csv")
-                max_colabs_slider = len(colab_df_for_slider) if not colab_df_for_slider.empty else 20
-            except Exception:
-                max_colabs_slider = 20
-
-            # O slider com on_change DEVE estar fora do st.form
-            st.slider(
-                "Quantos colaboradores hoje?",
-                min_value=0,
-                max_value=max_colabs_slider,
-                value=st.session_state.qtd_colaboradores_slider,
-                step=1,
-                key="num_colabs_slider_main",
-                on_change=lambda: st.session_state.update(qtd_colaboradores_slider=st.session_state.num_colabs_slider_main)
-            )
-        # --- FIM DA SEÇÃO DO EFETIVO DE PESSOAL E SLIDER ---
-
-        # O valor para renderizar os expanders é pego do session_state
-        qtd_colaboradores_para_renderizar = st.session_state.qtd_colaboradores_slider
-
-        # Usamos st.form para agrupar os inputs PRINCIPAIS DO RELATÓRIO
-        # Este formulário começa logo APÓS o slider de colaboradores.
+        # --- COMEÇO DO FORMULÁRIO PRINCIPAL PARA DADOS GERAIS DA OBRA ---
+        # Este formulário conterá a maioria dos campos, incluindo os detalhes dos colaboradores.
         with st.form(key="relatorio_form", clear_on_submit=False):
             st.subheader("Dados Gerais da Obra")
             obra = st.selectbox("Obra", obras_lista)
@@ -749,7 +720,15 @@ if st.session_state.logged_in:
             maquinas = st.text_area("Máquinas e equipamentos utilizados")
             servicos = st.text_area("Serviços executados no dia")
 
-            # ✅ CAMPOS DOS COLABORADORES (AGORA AQUI DENTRO DO FORM)
+            # --- SEÇÃO DO EFETIVO DE PESSOAL E SLIDER (FORA DO FORM PARA EVITAR ERRO DE CALLBACK) ---
+            # Para que apareça DEPOIS dos "Dados Gerais da Obra", ele não pode ser declarado antes do form.
+            # No entanto, ele também não pode estar DENTRO do form por causa do on_change.
+            # A solução é usar uma placeholder para renderizá-lo depois!
+            # Placeholder será preenchido ABAIXO do formulário.
+            efetivo_placeholder = st.empty() 
+            
+            # Os campos de detalhes dos colaboradores (expanders) podem estar dentro do form,
+            # pois eles dependem do valor do slider que está fora e não usam on_change.
             st.markdown("---") # Linha divisória para separar visualmente
             st.subheader("Detalhes dos Colaboradores") # Um novo subheader para os detalhes dos colaboradores
             
@@ -759,6 +738,10 @@ if st.session_state.logged_in:
             except Exception: 
                 colaboradores_lista = []
                 st.warning("Não foi possível carregar a lista de colaboradores (arquivo 'colaboradores.csv' não encontrado ou inválido).")
+
+            # O valor para renderizar os expanders é pego do session_state
+            # (que é atualizado pelo slider que estará fora do form)
+            qtd_colaboradores_para_renderizar = st.session_state.get('qtd_colaboradores_slider', 0)
 
             # Os expanders dos colaboradores são renderizados AQUI, dentro do formulário
             efetivo_lista = []
@@ -815,6 +798,33 @@ if st.session_state.logged_in:
 
             # O botão de submissão do formulário PRINCIPAL
             submitted = st.form_submit_button("Salvar e Gerar Relatório")
+
+        # --- AQUI É ONDE O SLIDER SERÁ RENDERIZADO, APÓS O FORMULÁRIO PRINCIPAL ---
+        # Usamos o placeholder definido anteriormente.
+        with efetivo_placeholder.container(border=True): # Usamos o placeholder para renderizar o container aqui
+            st.subheader("Efetivo de Pessoal")
+
+            # Inicializa o session_state para qtd_colaboradores se ainda não existe
+            if 'qtd_colaboradores_slider' not in st.session_state:
+                st.session_state.qtd_colaboradores_slider = 0
+
+            # Carrega colaboradores para o slider, se necessário para o max_value dinâmico
+            try:
+                colab_df_for_slider = pd.read_csv("colaboradores.csv")
+                max_colabs_slider = len(colab_df_for_slider) if not colab_df_for_slider.empty else 20
+            except Exception:
+                max_colabs_slider = 20 # Valor padrão se colaboradores.csv falhar
+
+            # O st.slider atualiza o valor no session_state diretamente
+            st.slider(
+                "Quantos colaboradores hoje?",
+                min_value=0,
+                max_value=max_colabs_slider,
+                value=st.session_state.qtd_colaboradores_slider,
+                step=1,
+                key="num_colabs_slider_main",
+                on_change=lambda: st.session_state.update(qtd_colaboradores_slider=st.session_state.num_colabs_slider_main)
+            )
 
         temp_dir_obj_for_cleanup = None 
         fotos_processed_paths = [] 
