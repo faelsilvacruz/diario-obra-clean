@@ -50,6 +50,13 @@ def get_img_as_base64(file_path):
 # Conversão da logo para Base64 para ser usada como ícone da página
 LOGO_PDF_BASE64 = get_img_as_base64(LOGO_PDF_PATH)
 
+# --- LINHA DE DEPURACAO ---
+# Verifique o conteúdo de LOGO_PDF_BASE64
+if not LOGO_PDF_BASE64:
+    st.error("Erro: LOGO_PDF_BASE64 está vazio. A imagem do ícone não pôde ser carregada ou convertida.")
+    st.stop() # Impede que o app continue com um erro
+# --- FIM DA LINHA DE DEPURACAO ---
+
 # ✅ CONFIGURAÇÃO DA PÁGINA STREAMLIT (DEPOIS da função get_img_as_base64)
 st.set_page_config(
     page_title="Diário de Obra - RDV",
