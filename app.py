@@ -31,9 +31,6 @@ import base64
 DRIVE_FOLDER_ID = "1BUgZRcBrKksC3eUytoJ5mv_nhMRcAv1d" # ID da pasta no Google Drive
 LOGO_LOGIN_PATH = "LOGO RDV AZUL.jpeg" # Para a tela de login
 LOGO_PDF_PATH = "LOGO_RDV_AZUL-sem fundo.png" # Para o cabeçalho do PDF
-
-# Para o ícone da página, usaremos a mesma logo do PDF temporariamente
-# ou você pode criar um "favicon.png" pequeno (e mudar esta linha para "favicon.png")
 LOGO_ICON_PATH = "LOGO_RDV_AZUL-sem fundo.png" # Usando a mesma logo do PDF para o ícone da página
 
 
@@ -57,33 +54,27 @@ def load_page_icon():
     Carrega o ícone para st.set_page_config.
     Retorna o caminho do arquivo de imagem temporário ou None se houver erro.
     """
-    # Preferimos um arquivo PNG para o ícone.
-    # Primeiro, verifica se o LOGO_ICON_PATH existe e é um PNG/JPG
     if LOGO_ICON_PATH and os.path.exists(LOGO_ICON_PATH):
         try:
             img = PILImage.open(LOGO_ICON_PATH)
-            img.thumbnail((32, 32), PILImage.Resampling.LANCZOS) # Redimensiona com alta qualidade
+            img.thumbnail((32, 32), PILImage.Resampling.LANCZOS)
             
-            # Crie um arquivo temporário em disco para o ícone
-            # Esta é uma alternativa mais robusta que o BytesIO para page_icon em alguns casos
             temp_icon_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
             img.save(temp_icon_file.name, format="PNG")
-            temp_icon_file.close() # Feche o arquivo para garantir que possa ser lido por st.set_page_config
+            temp_icon_file.close()
             return temp_icon_file.name
         except Exception as e:
             st.warning(f"Erro ao tentar carregar ou redimensionar LOGO_ICON_PATH para o ícone: {e}")
-            return None # Retorna None para que o set_page_config não use um ícone
+            return None
     else:
-        # Se LOGO_ICON_PATH não existe, ou se você quiser usar a logo principal
-        # vamos tentar usar a logo principal do PDF, se ela existir.
         if os.path.exists(LOGO_PDF_PATH):
             try:
                 img = PILImage.open(LOGO_PDF_PATH)
-                img.thumbnail((32, 32), PILImage.Resampling.LANCZOS) # Redimensiona com alta qualidade
+                img.thumbnail((32, 32), PILImage.Resampling.LANCZOS)
                 
                 temp_icon_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
                 img.save(temp_icon_file.name, format="PNG")
-                temp_icon_file.close() # Feche o arquivo
+                temp_icon_file.close()
                 return temp_icon_file.name
             except Exception as e:
                 st.warning(f"Erro ao tentar carregar ou redimensionar LOGO_PDF_PATH para o ícone: {e}")
@@ -93,37 +84,30 @@ def load_page_icon():
         return None
 
 # ✅ CONFIGURAÇÃO DA PÁGINA STREAMLIT (COM TRATAMENTO DE ERRO)
-# Esta variável será usada para armazenar o caminho do arquivo temporário do ícone
-# para que possa ser limpa no final da sessão do Streamlit.
 temp_icon_path_for_cleanup = None
 
 try:
-    # Tenta carregar o ícone. Se falhar, page_icon_to_use será None.
     page_icon_to_use = load_page_icon()
     
     if page_icon_to_use:
-        # Armazena o caminho do arquivo temporário para limpeza posterior
         temp_icon_path_for_cleanup = page_icon_to_use
         st.set_page_config(
             page_title="Diário de Obra - RDV",
             layout="centered",
-            page_icon=page_icon_to_use # Usa o caminho do arquivo temporário
+            page_icon=page_icon_to_use
         )
     else:
-        # Se não houver ícone válido, configura a página sem ele.
         st.set_page_config(
             page_title="Diário de Obra - RDV",
             layout="centered"
         )
 except Exception as e:
     st.warning(f"Erro durante a configuração da página (provavelmente com o ícone): {e}")
-    # Fallback final: configura sem ícone se qualquer erro ocorrer.
     st.set_page_config(
         page_title="Diário de Obra - RDV",
         layout="centered"
     )
 
-# Adicione esta verificação de caminhos de arquivos para depuração
 for path in [LOGO_LOGIN_PATH, LOGO_PDF_PATH, LOGO_ICON_PATH]:
     if not os.path.exists(path):
         st.warning(f"Arquivo não encontrado: {path}. Verifique se os nomes e caminhos estão corretos.")
@@ -163,7 +147,7 @@ def login_user(username, password):
     c.execute('SELECT * FROM userstable WHERE username =? AND password = ?', (username,password))
     data = c.fetchall()
     if data:
-        return True, data[0][2] # Retorna True e a role
+        return True, data[0][2]
     return False, None
 
 def view_all_users():
@@ -174,7 +158,7 @@ def view_all_users():
 def init_db():
     """Inicializa o banco de dados e cria um usuário admin padrão se não houver usuários."""
     create_usertable()
-    if not view_all_users(): # Se a tabela de usuários estiver vazia
+    if not view_all_users():
         add_userdata("admin", make_hashes("admin123"), "admin")
         st.success("Usuário 'admin' criado com senha 'admin123'. Por favor, altere sua senha após o primeiro login.")
 
@@ -189,11 +173,9 @@ def draw_text_area_with_wrap(canvas_obj, text, x, y_start, max_width, line_heigh
     style.leading = line_height
     style.fontName = "Helvetica"
     
-    # Substituir quebras de linha padrão por <br/> para o Paragraph
     text = text.replace('\n', '<br/>')
     p = Paragraph(text, style)
     
-    # Use A4[1] (altura da página) para o wrapOn; não use y_start para evitar problemas de altura negativa
     text_width, text_height = p.wrapOn(canvas_obj, max_width, A4[1]) 
     
     actual_y_start = y_start - text_height
@@ -202,9 +184,9 @@ def draw_text_area_with_wrap(canvas_obj, text, x, y_start, max_width, line_heigh
 
 def draw_header(c, width, height, logo_path):
     """Desenha o cabeçalho principal do PDF com logo e título."""
-    c.setFillColor(HexColor("#0F2A4D")) # Cor azul escuro da RDV
+    c.setFillColor(HexColor("#0F2A4D"))
     c.rect(0, height-80, width, 80, fill=True, stroke=False)
-    c.setFillColor(white) # Texto branco para o cabeçalho
+    c.setFillColor(white)
     c.setFont("Helvetica-Bold", 18)
     c.drawCentredString(width/2, height-50, "DIÁRIO DE OBRA")
     c.setFont("Helvetica", 12)
@@ -213,8 +195,6 @@ def draw_header(c, width, height, logo_path):
     if os.path.exists(logo_path):
         try:
             logo = ImageReader(logo_path)
-            # Ajuste as coordenadas e o tamanho da logo conforme necessário
-            # (X, Y, Largura, Altura)
             c.drawImage(logo, 30, height-70, width=100, height=50, preserveAspectRatio=True) 
         except Exception as e:
             st.warning(f"Erro ao carregar a logo '{logo_path}' para o PDF: {e}")
@@ -228,7 +208,6 @@ def draw_info_table(c, registro, width, height, y_start, margem):
         ["CONTRATO:", registro.get("Contrato", "N/A")]
     ]
     
-    # Calcula a largura da segunda coluna dinamicamente
     col2_width = width - 100 - (2 * margem)
     table = Table(data, colWidths=[100, col2_width]) 
     table.setStyle(TableStyle([
@@ -254,14 +233,13 @@ def draw_efetivo_table(c, efetivo_data_json, width, height, y_start, margem):
     for item in efetivo_data:
         data.append([item.get("Nome", ""), item.get("Função", ""), item.get("Entrada", ""), item.get("Saída", "")])
     
-    # Preenche com linhas vazias se houver menos de 6 colaboradores para manter a altura da tabela consistente
     min_rows_display = 6
-    while len(data) < min_rows_display + 1: # +1 para o cabeçalho
+    while len(data) < min_rows_display + 1:
         data.append(["", "", "", ""])
 
     table = Table(data, colWidths=[120, 100, 80, 80])
     table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), HexColor("#0F2A4D")), # Cabeçalho azul escuro
+        ('BACKGROUND', (0,0), (-1,0), HexColor("#0F2A4D")),
         ('TEXTCOLOR', (0,0), (-1,0), white),
         ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
         ('FONTSIZE', (0,0), (-1,-1), 8),
@@ -278,28 +256,23 @@ def draw_footer(c, width, margem, current_y, registro):
     """Desenha o rodapé com as áreas de assinatura."""
     footer_height = 80 
     
-    # Verifica se há espaço suficiente para o rodapé; se não, cria uma nova página
     if current_y < (margem + footer_height + 20): 
         c.showPage()
-        current_y = A4[1] - margem # Reinicia Y no topo da nova página
+        current_y = A4[1] - margem
 
     c.setFont("Helvetica", 9)
     c.setFillColor(darkgrey)
     
-    # Desenha o retângulo do rodapé
     c.rect(margem, margem, width - 2*margem, 70) 
     
-    # Posições para as linhas e textos de assinatura
     y_assinatura_line = margem + 45
     y_assinatura_title = margem + 30
     y_assinatura_name = margem + 15
     
-    # Responsável Técnico
     c.line(margem + 50, y_assinatura_line, margem + 200, y_assinatura_line)
     c.drawCentredString(margem + 125, y_assinatura_title, "Responsável Técnico")
     c.drawCentredString(margem + 125, y_assinatura_name, f"Nome: {registro.get('Responsável Empresa', 'Eng. Responsável')}")
 
-    # Fiscalização
     c.line(width - margem - 200, y_assinatura_line, width - margem - 50, y_assinatura_line)
     c.drawCentredString(width - margem - 125, y_assinatura_title, "Fiscalização")
     c.drawCentredString(width - margem - 125, y_assinatura_name, f"Nome: {registro.get('Fiscalização', 'Conforme assinatura')}")
@@ -307,7 +280,7 @@ def draw_footer(c, width, margem, current_y, registro):
     c.setFillColor(black)
     c.setFont("Helvetica", 8)
     c.drawString(margem + 5, margem + 5, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-    return margem # Retorna a posição Y do topo do rodapé
+    return margem
 
 
 # ✅ FUNÇÃO DE GERAÇÃO DE PDF PRINCIPAL
@@ -316,80 +289,68 @@ def gerar_pdf(registro, fotos_paths):
     Generates the daily work report in PDF format, including form data
     and processed photos, using the new layout.
     """
-    buffer = io.BytesIO() # Buffer in memory for the PDF
+    buffer = io.BytesIO()
 
     try:
         c = canvas.Canvas(buffer, pagesize=A4)
         width, height = A4
         margem = 30
 
-        # --- Draw Header ---
         draw_header(c, width, height, LOGO_PDF_PATH)
-        y = height - 100 # Start content below the header
+        y = height - 100
 
-        # --- Draw Main Data Table (Work, Location, Date, Contract) ---
         y = draw_info_table(c, registro, width, height, y, margem)
         
-        # --- EXECUTED SERVICES / COMPANY NOTES SECTION ---
         c.setFont("Helvetica-Bold", 10)
-        # Center the section title
         c.drawCentredString(width / 2, y - 10, "Serviços Executados / Anotações da Empresa")
-        c.setFont("Helvetica", 10) # Back to normal font
-        y -= 25 # Space after the section title
+        c.setFont("Helvetica", 10)
+        y -= 25
 
-        # (1) CLIMA
-        box_clima_h = 20 # Fixed height for weather box
+        box_clima_h = 20
         c.rect(margem, y - box_clima_h, width - 2*margem, box_clima_h)
         c.drawString(margem + 5, y - 15, f"(1)- CLIMA: {registro.get('Clima', 'N/A')}")
-        y -= (box_clima_h + 5) # Update Y for the next element
+        y -= (box_clima_h + 5)
 
-        # (2) MACHINERY AND EQUIPMENT
-        box_maquinas_h = 60 # Height of the box for machines
+        box_maquinas_h = 60
         c.rect(margem, y - box_maquinas_h, width - 2*margem, box_maquinas_h)
         c.drawString(margem + 5, y - 15, "(2)- MÁQUINAS E EQUIPAMENTOS:")
-        y_text_maquinas = y - 30 # Y position for text inside the box
-        # Use draw_text_area_with_wrap for content
+        y_text_maquinas = y - 30
         draw_text_area_with_wrap(c, registro.get('Máquinas', 'Nenhuma máquina/equipamento informado.'), margem + 15, y_text_maquinas, (width - 2*margem) - 20, line_height=12)
         y -= (box_maquinas_h + 5)
 
-        # (3) EXECUTED SERVICES
-        box_servicos_h = 100 # Height of the box for services
+        box_servicos_h = 100
         c.rect(margem, y - box_servicos_h, width - 2*margem, box_servicos_h)
         c.drawString(margem + 5, y - 15, "(3)- SERVIÇOS EXECUTADOS:")
         y_text_servicos = y - 30
         draw_text_area_with_wrap(c, registro.get('Serviços', 'Nenhum serviço executado informado.'), margem + 15, y_text_servicos, (width - 2*margem) - 20, line_height=12)
         y -= (box_servicos_h + 5)
 
-        # --- Draw Personnel Table ---
         c.setFont("Helvetica-Bold", 10)
         c.drawString(margem, y - 10, "(4)- EFETIVO DE PESSOAL")
         y -= 25
         y = draw_efetivo_table(c, registro.get("Efetivo", "[]"), width, height, y, margem) 
 
-        # --- (5) OTHER OCCURRENCES SECTION ---
         c.setFont("Helvetica-Bold", 10)
         c.drawString(margem, y - 10, "(5)- OUTRAS OCORRÊNCIAS:")
         c.setFont("Helvetica", 10)
         y -= 25
         
-        box_ocorrencias_h = 60 # Height of the box for occurrences
+        box_ocorrencias_h = 60
         c.rect(margem, y - box_ocorrencias_h, width - 2*margem, box_ocorrencias_h)
         y_text_ocorrencias = y - 15
         draw_text_area_with_wrap(c, registro.get('Ocorrências', 'Nenhuma ocorrência informada.'), margem + 5, y_text_ocorrencias, (width - 2*margem) - 10, line_height=12)
         y -= (box_ocorrencias_h + 10)
 
-        # --- INSPECTION NOTES SECTION ---
         c.setFont("Helvetica-Bold", 10)
         c.drawCentredString(width / 2, y - 10, "ANOTAÇÕES DA FISCALIZAÇÃO")
         c.setFont("Helvetica", 10)
         y -= 25
         
-        box_fiscalizacao_h = 80 # Height of the box for inspection
+        box_fiscalizacao_h = 80
         c.rect(margem, y - box_fiscalizacao_h, width - 2*margem, box_fiscalizacao_h)
         c.drawString(margem + 5, y - box_fiscalizacao_h + 10, f"Nome da Fiscalização: {registro.get('Fiscalização', 'N/A')}")
         y -= (box_fiscalizacao_h + 10)
 
-        # --- PLUVIOMETRIC MAP SECTION ---
         c.setFont("Helvetica-Bold", 10)
         c.drawCentredString(width / 2, y - 10, "Mapa Pluviométrico")
         c.setFont("Helvetica", 10)
@@ -415,88 +376,76 @@ def gerar_pdf(registro, fotos_paths):
         table_pluv.drawOn(c, margem, y - table_pluv_height)
         y -= (table_pluv_height + 10)
         
-        # Legenda das cores do Mapa Pluviométrico (posicionado ao lado da tabela)
         clima_legend = [
-            ["BOM", HexColor("#ADD8E6")],      # Azul claro
-            ["CHUVA", HexColor("#87CEEB")],    # Azul médio
-            ["GAROA", HexColor("#6495ED")],    # Azul forte
-            ["IMPRATICÁVEL", HexColor("#FF0000")], # Vermelho
-            ["FERIADO", HexColor("#008000")],   # Verde
-            ["GUARDA", HexColor("#FFA500")]    # Laranja
+            ["BOM", HexColor("#ADD8E6")],
+            ["CHUVA", HexColor("#87CEEB")],
+            ["GAROA", HexColor("#6495ED")],
+            ["IMPRATICÁVEL", HexColor("#FF0000")],
+            ["FERIADO", HexColor("#008000")],
+            ["GUARDA", HexColor("#FFA500")]
         ]
         
-        # Posição da legenda à direita da tabela pluviométrica
         legend_x_offset = width / 2 + 30 
-        legend_y_start = (y + table_pluv_height) - (table_pluv_height / 2) + (len(clima_legend) * 15 / 2) - 10 # Centraliza verticalmente com a tabela
+        legend_y_start = (y + table_pluv_height) - (table_pluv_height / 2) + (len(clima_legend) * 15 / 2) - 10
         
         c.setFont("Helvetica", 8)
         for i, (text, color) in enumerate(clima_legend):
             c.setFillColor(color)
-            c.rect(legend_x_offset, legend_y_start - (i * 15), 10, 10, fill=1) # Desenha o quadrado colorido
+            c.rect(legend_x_offset, legend_y_start - (i * 15), 10, 10, fill=1)
             c.setFillColor(black)
-            c.drawString(legend_x_offset + 15, legend_y_start - (i * 15) + 2, text) # Desenha o texto da legenda
+            c.drawString(legend_x_offset + 15, legend_y_start - (i * 15) + 2, text)
 
-        # --- Draw Footer ---
-        # Pass the current Y position to the footer to check if a new page is needed
         draw_footer(c, width, margem, y, registro) 
 
-        # --- Adding Photos (on new pages) ---
         for i, foto_path in enumerate(fotos_paths):
             try:
-                # Check if the photo file exists before trying to load
                 if not Path(foto_path).exists():
                     st.warning(f"The photo '{Path(foto_path).name}' was not found in the temporary path and will be ignored in the PDF.")
                     continue
 
-                c.showPage() # Start a new page for each photo
+                c.showPage()
                 y_foto = height - margem
                 c.setFont("Helvetica-Bold", 12)
                 c.drawString(margem, y_foto, f"📷 Foto {i+1}: {Path(foto_path).name}")
                 c.setFont("Helvetica", 10)
-                y_foto -= 20 # Space for the photo name
+                y_foto -= 20
 
-                img = PILImage.open(foto_path) # Open the image from the temporary path
+                img = PILImage.open(foto_path)
                 
-                # Logic to resize the image to fit the page without distortion
                 img_width, img_height = img.size
                 max_img_width = width - 2 * margem
-                max_img_height = height - 2 * margem - (height - y_foto) # Available height below the photo title
+                max_img_height = height - 2 * margem - (height - y_foto)
 
-                # Calculate new dimensions while maintaining aspect ratio
                 aspect_ratio = img_width / img_height
                 
                 new_width = img_width
                 new_height = img_height
 
                 if img_width > max_img_width or img_height > max_img_height:
-                    if (max_img_width / aspect_ratio) <= max_img_height: # Limit by width
+                    if (max_img_width / aspect_ratio) <= max_img_height:
                         new_width = max_img_width
                         new_height = max_img_width / aspect_ratio
-                    else: # Limit by height
+                    else:
                         new_height = max_img_height
                         new_width = max_img_height * aspect_ratio
-                    img = img.resize((int(new_width), int(new_height)), PILImage.Resampling.LANCZOS) # Resize with high quality
+                    img = img.resize((int(new_width), int(new_height)), PILImage.Resampling.LANCZOS)
                 
-                # Calculate X position to center the image horizontally
                 x_pos_img = margem + (max_img_width - new_width) / 2
-                
-                # Calculate Y position to draw the image below the photo name and with margin
                 img_y_pos = y_foto - new_height - 10 
                 
-                # Draw the image in the PDF
                 c.drawImage(ImageReader(img), x_pos_img, img_y_pos, width=new_width, height=new_height)
 
             except Exception as img_error:
                 st.warning(f"Error adding photo '{Path(foto_path).name}' to PDF: {str(img_error)}. The photo will be ignored.")
-                continue # Continue to the next photo
+                continue
 
-        c.save() # Save all operations to the PDF
-        buffer.seek(0) # Return pointer to the beginning of the buffer so it can be read
+        c.save()
+        buffer.seek(0)
         return buffer
 
     except Exception as e:
         st.error(f"Critical error generating the PDF document: {str(e)}")
-        return None # Return None in case of critical PDF generation failure
+        return None
 
 
 # ✅ FUNÇÃO DE PROCESSAMENTO DE FOTOS
@@ -533,8 +482,8 @@ def processar_fotos(fotos_upload, obra_nome, data_relatorio):
                 st.info(f"Photo {i+1} temporarily saved. Size: {caminho_foto_temp.stat().st_size} bytes.")
 
                 img = PILImage.open(caminho_foto_temp)
-                img.thumbnail((1200, 1200), PILImage.Resampling.LANCZOS)  # Resize keeping aspect ratio with quality
-                img.save(caminho_foto_temp, "JPEG", quality=85) # Save as JPEG with compression
+                img.thumbnail((1200, 1200), PILImage.Resampling.LANCZOS)
+                img.save(caminho_foto_temp, "JPEG", quality=85)
 
                 fotos_processadas_paths.append(str(caminho_foto_temp))
                 st.info(f"Photo {i+1} processed and ready: {caminho_foto_temp}")
@@ -560,7 +509,7 @@ def upload_para_drive_seguro(pdf_buffer, nome_arquivo):
     Inclui tratamento de erros da API.
     """
     try:
-        pdf_buffer.seek(0) # Garante que o ponteiro está no início do buffer para leitura
+        pdf_buffer.seek(0)
         service = build("drive", "v3", credentials=creds, static_discovery_docs=False)
         media = MediaIoBaseUpload(pdf_buffer, mimetype='application/pdf', resumable=True)
         file_metadata = {'name': nome_arquivo, 'parents': [DRIVE_FOLDER_ID]}
@@ -569,10 +518,10 @@ def upload_para_drive_seguro(pdf_buffer, nome_arquivo):
             body=file_metadata,
             media_body=media,
             fields='id',
-            supportsAllDrives=True # Importante para pastas em "Drives Compartilhados"
+            supportsAllDrives=True
         ).execute()
         return file.get("id")
-    except HttpError as error: # Tratamento específico para erros da API do Google Drive
+    except HttpError as error:
         st.error(f"Erro HTTP ao enviar para o Google Drive: Status {error.resp.status}. Detalhes: {error.content.decode('utf-8')}")
         st.error("Por favor, verifique as **permissões da sua Service Account** e se a **pasta de destino no Google Drive está compartilhada** corretamente com ela (permissão de 'Editor').")
         return None
@@ -587,18 +536,16 @@ def enviar_email(destinatarios, assunto, corpo_html, drive_id=None):
     Espera um corpo de e-mail já em formato HTML.
     """
     try:
-        # Configuração do Yagmail com parâmetros explícitos para maior compatibilidade
         yag = yagmail.SMTP(
             user=st.secrets["email"]["user"],
             password=st.secrets["email"]["password"],
-            host='smtp.gmail.com', # Host SMTP do Gmail
-            port=587,              # Porta padrão para STARTTLS
-            smtp_starttls=True,    # Habilita STARTTLS
-            smtp_ssl=False,        # Desabilita SSL direto (pois usamos STARTTLS)
-            timeout=30             # Timeout de 30 segundos para conexão
+            host='smtp.gmail.com',
+            port=587,
+            smtp_starttls=True,
+            smtp_ssl=False,
+            timeout=30
         )
         
-        # Monta o corpo completo do e-mail em HTML
         corpo_completo_final = f"""
         <html>
             <body>
@@ -611,12 +558,10 @@ def enviar_email(destinatarios, assunto, corpo_html, drive_id=None):
         </html>
         """
         
-        # Envia o e-mail
         yag.send(
             to=destinatarios,
             subject=assunto,
             contents=corpo_completo_final,
-            # Adiciona um cabeçalho personalizado, útil para filtros ou auditoria
             headers={'X-Application': 'DiarioObraRDV'}
         )
         return True
@@ -625,7 +570,6 @@ def enviar_email(destinatarios, assunto, corpo_html, drive_id=None):
         st.error("Erro: Credenciais de e-mail não encontradas em '.streamlit/secrets.toml'. Por favor, verifique.")
         return False
     except Exception as e:
-        # Erros específicos do SMTP (como autenticação falha) são úteis para depuração
         st.error(f"Falha no envio do e-mail: {str(e)}")
         return False
 
@@ -637,11 +581,10 @@ if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = None
     st.session_state.role = None
-init_db() # Garante que o DB é criado/inicializado na primeira execução
+init_db()
 
 # --- Tela de Login ---
 if not st.session_state.logged_in:
-    # Layout personalizado para a tela de login
     st.markdown(f"""
     <style>
         .login-container {{
@@ -658,7 +601,7 @@ if not st.session_state.logged_in:
         }}
         .stButton>button {{
             width: 100%;
-            background: #0F2A4D; /* Sua cor principal */
+            background: #0F2A4D;
             color: white;
             border: none;
             padding: 10px 20px;
@@ -697,24 +640,23 @@ if not st.session_state.logged_in:
         
         if submitted:
             if username_input and password_input:
-                hashed_password = make_hashes(password_input) # Hash da senha digitada
-                authenticated, role = login_user(username_input, hashed_password) # Autentica com a senha hashed
+                hashed_password = make_hashes(password_input)
+                authenticated, role = login_user(username_input, hashed_password)
                 if authenticated:
                     st.session_state["logged_in"] = True
                     st.session_state["username"] = username_input
                     st.session_state["role"] = role
-                    st.rerun() # Recarrega o app para sair da tela de login
+                    st.rerun()
                 else:
                     st.error("Credenciais inválidas. Verifique seu usuário e senha.")
             else:
                 st.warning("Por favor, preencha todos os campos.")
     
     st.markdown("</div>", unsafe_allow_html=True) 
-    st.stop() # Impede que o restante do app seja renderizado antes do login
+    st.stop()
 
 
 # ✅ LÓGICA DO APP APÓS LOGIN
-# Se o usuário está logado, mostra o conteúdo do aplicativo
 if st.session_state.logged_in:
     st.sidebar.title(f"Bem-vindo, {st.session_state.username}!")
     st.sidebar.button("Sair", on_click=lambda: st.session_state.clear())
@@ -725,27 +667,22 @@ if st.session_state.logged_in:
     
     choice = st.sidebar.selectbox("Navegar", menu)
 
-    # Função para a página do Diário de Obra
     def render_diario_obra_page():
-        # ✅ CARREGAMENTO DE CSVs (Permanece no início da função, antes do formulário)
-        @st.cache_data(ttl=3600) # Adicionado TTL para cache de 1 hora
+        @st.cache_data(ttl=3600)
         def carregar_arquivo_csv(nome_arquivo):
-            """Carrega um arquivo CSV e verifica sua existência."""
             if not os.path.exists(nome_arquivo):
                 st.error(f"Erro: Arquivo de dados '{nome_arquivo}' não encontrado. Por favor, verifique se os CSVs estão na raiz do projeto.")
-                return pd.DataFrame() # Retorna um DataFrame vazio para evitar erros
+                return pd.DataFrame()
             try:
                 return pd.read_csv(nome_arquivo)
             except Exception as e:
                 st.error(f"Erro ao ler o arquivo '{nome_arquivo}': {e}")
-                return pd.DataFrame() # Retorna DataFrame vazio em caso de erro de leitura
+                return pd.DataFrame()
 
-        # Carrega CSVs principais e trata possíveis erros
         try:
             obras_df = carregar_arquivo_csv("obras.csv")
             contratos_df = carregar_arquivo_csv("contratos.csv")
             
-            # Se algum DataFrame essencial estiver vazio, exibe erro e para
             if obras_df.empty:
                 st.error("O arquivo 'obras.csv' não pôde ser carregado ou está vazio. O aplicativo não pode continuar.")
                 st.stop()
@@ -755,49 +692,42 @@ if st.session_state.logged_in:
 
         except Exception as e:
             st.error(f"Erro ao carregar arquivos CSV essenciais: {e}")
-            st.stop() # Interrompe a execução se os arquivos essenciais não forem encontrados
+            st.stop()
 
-        # Listas para os selectbox, definidas AQUI ANTES DO FORM
         obras_lista = [""] + obras_df["Nome"].tolist()
         contratos_lista = [""] + contratos_df["Nome"].tolist()
 
         st.title("Relatório Diário de Obra - RDV Engenharia")
 
-        # --- SEÇÃO EFETIVO DE PESSOAL (AGORA FORA DO FORM, AGREGADA COM O SLIDER) ---
-        # Move o subheader para fora do form, para ficar junto com o slider.
-        st.subheader("Efetivo de Pessoal")
+        # --- NOVO AGRUPAMENTO: TÍTULO EFETIVO DE PESSOAL E SLIDER ---
+        # Usamos um container para agrupar visualmente o título e o slider
+        with st.container(border=True): # O border=True ajuda a visualizar o agrupamento
+            st.subheader("Efetivo de Pessoal")
 
-        # ✅ SLIDER DE COLABORADORES (PERMANECE FORA DO FORM)
-        # É crucial que ele esteja fora do form para usar on_change e forçar o rerun
+            if 'qtd_colaboradores_slider' not in st.session_state:
+                st.session_state.qtd_colaboradores_slider = 0
+
+            try:
+                colab_df_for_slider = pd.read_csv("colaboradores.csv")
+                max_colabs_slider = len(colab_df_for_slider) if not colab_df_for_slider.empty else 20
+            except Exception:
+                max_colabs_slider = 20
+
+            st.slider(
+                "Quantos colaboradores hoje?",
+                min_value=0,
+                max_value=max_colabs_slider,
+                value=st.session_state.qtd_colaboradores_slider,
+                step=1,
+                key="num_colabs_slider_main",
+                on_change=lambda: st.session_state.update(qtd_colaboradores_slider=st.session_state.num_colabs_slider_main)
+            )
+        # --- FIM DO NOVO AGRUPAMENTO ---
         
-        # Inicializa o session_state para qtd_colaboradores se ainda não existe
-        if 'qtd_colaboradores_slider' not in st.session_state:
-            st.session_state.qtd_colaboradores_slider = 0
-
-        # Carrega colaboradores para o slider, se necessário para o max_value dinâmico
-        try:
-            colab_df_for_slider = pd.read_csv("colaboradores.csv")
-            max_colabs_slider = len(colab_df_for_slider) if not colab_df_for_slider.empty else 20
-        except Exception:
-            max_colabs_slider = 20 # Valor padrão se colaboradores.csv falhar
-
-        # O st.slider atualiza o valor no session_state diretamente
-        st.slider(
-            "Quantos colaboradores hoje?",
-            min_value=0,
-            max_value=max_colabs_slider, # Pode ser dinâmico ou um valor fixo alto
-            value=st.session_state.qtd_colaboradores_slider, # Usa o valor do session_state
-            step=1,
-            key="num_colabs_slider_main", # Chave principal do slider
-            on_change=lambda: st.session_state.update(qtd_colaboradores_slider=st.session_state.num_colabs_slider_main)
-        )
-        
-        # Agora, o loop de renderização usa o valor do session_state
-        # Este valor será persistente entre as re-execuções
+        # O valor para renderizar os expanders é pego do session_state
         qtd_colaboradores_para_renderizar = st.session_state.qtd_colaboradores_slider
 
-
-        # Usamos st.form para agrupar os inputs
+        # Usamos st.form para agrupar os inputs PRINCIPAIS DO RELATÓRIO
         with st.form(key="relatorio_form", clear_on_submit=False):
             st.subheader("Dados Gerais da Obra")
             obra = st.selectbox("Obra", obras_lista)
@@ -808,8 +738,10 @@ if st.session_state.logged_in:
             maquinas = st.text_area("Máquinas e equipamentos utilizados")
             servicos = st.text_area("Serviços executados no dia")
 
-            # ✅ CAMPOS DOS COLABORADORES (AGORA DENTRO DO FORM, LOGO APÓS OS DADOS GERAIS DA OBRA)
-            # Carrega colaboradores para os selectboxes internos
+            # ✅ CAMPOS DOS COLABORADORES (AGORA AQUI DENTRO DO FORM)
+            st.markdown("---") # Linha divisória para separar visualmente
+            st.subheader("Detalhes dos Colaboradores") # Um novo subheader para os detalhes dos colaboradores
+            
             try:
                 colab_df = pd.read_csv("colaboradores.csv")
                 colaboradores_lista = colab_df["Nome"].tolist()
@@ -817,12 +749,10 @@ if st.session_state.logged_in:
                 colaboradores_lista = []
                 st.warning("Não foi possível carregar a lista de colaboradores (arquivo 'colaboradores.csv' não encontrado ou inválido).")
 
-            # O container e o loop de renderização permanecem como estão, pois dependem do session_state
-            efetivo_container = st.container()
+            # Os expanders dos colaboradores são renderizados AQUI, dentro do formulário
             efetivo_lista = []
-
-            with efetivo_container:
-                for i in range(qtd_colaboradores_para_renderizar): # Usa o valor do session_state
+            if qtd_colaboradores_para_renderizar > 0:
+                for i in range(qtd_colaboradores_para_renderizar):
                     with st.expander(f"Colaborador {i+1}", expanded=True):
                         options_for_selectbox = [""] + colaboradores_lista if colaboradores_lista else ["Nenhum colaborador disponível"]
                         nome = st.selectbox(
@@ -861,24 +791,24 @@ if st.session_state.logged_in:
                             "Entrada": entrada.strftime("%H:%M"),
                             "Saída": saida.strftime("%H:%M")
                         })
-            # --- FIM DA SEÇÃO EFETIVO DE PESSOAL (APENAS OS CAMPOS, O SUBHEADER ESTÁ ACIMA DO FORM) ---
-
+            else:
+                st.info("Ajuste o slider 'Quantos colaboradores hoje?' para adicionar campos de colaboradores.")
+            # --- FIM DA SEÇÃO DETALHES DOS COLABORADORES ---
+            
+            st.markdown("---") # Outra linha divisória
             st.subheader("Informações Adicionais")
             ocorrencias = st.text_area("Ocorrências")
             nome_empresa = st.text_input("Responsável pela empresa")
             nome_fiscal = st.text_input("Nome da fiscalização")
             fotos = st.file_uploader("Fotos do serviço", accept_multiple_files=True, type=["png", "jpg", "jpeg"])
 
-            # BOTÃO DE SUBMISSÃO - DENTRO DO FORM (PERMANECE AQUI)
             submitted = st.form_submit_button("Salvar e Gerar Relatório")
 
-        # ✅ LÓGICA DE PROCESSAMENTO APÓS SUBMIT (fora do form)
         temp_dir_obj_for_cleanup = None 
         fotos_processed_paths = [] 
 
         if submitted:
             try:
-                # Validações básicas antes de prosseguir
                 if not obra or obra == "":
                     st.error("Por favor, selecione a 'Obra'.")
                     st.stop()
@@ -889,7 +819,6 @@ if st.session_state.logged_in:
                     st.error("Por favor, preencha o campo 'Responsável pela empresa'.")
                     st.stop()
 
-                # Registro de dados do formulário
                 registro = {
                     "Obra": obra,
                     "Local": local,
@@ -904,17 +833,14 @@ if st.session_state.logged_in:
                     "Fiscalização": nome_fiscal
                 }
 
-                # --- Processamento das Fotos ---
                 with st.spinner("Processando fotos... Isso pode levar alguns segundos..."):
                     fotos_processed_paths = processar_fotos(fotos, obra, data) if fotos else []
                     
-                    # Captura o diretório temporário para limpeza, se fotos foram processadas
                     if fotos_processed_paths:
                         temp_dir_obj_for_cleanup = Path(fotos_processed_paths[0]).parent
-                    elif fotos: # Se o usuário enviou fotos, mas nenhuma foi processada com sucesso
+                    elif fotos:
                         st.warning("⚠️ Nenhuma foto foi processada corretamente. O PDF pode não conter imagens.")
                         
-                # --- Geração do PDF ---
                 with st.spinner("Gerando PDF..."):
                     nome_pdf = f"Diario_{obra.replace(' ', '_')}_{data.strftime('%Y-%m-%d')}.pdf"
                     pdf_buffer = gerar_pdf(registro, fotos_processed_paths)
@@ -923,7 +849,6 @@ if st.session_state.logged_in:
                         st.error("Falha crítica ao gerar o PDF. Por favor, tente novamente ou verifique os logs para detalhes.")
                         st.stop()
                         
-                # --- Download do PDF ---
                 st.download_button(
                     label="📥 Baixar Relatório PDF",
                     data=pdf_buffer,
@@ -932,7 +857,6 @@ if st.session_state.logged_in:
                     type="primary"
                 )
 
-                # --- Upload para Google Drive ---
                 drive_id = None
                 with st.spinner("Enviando relatório para o Google Drive..."):
                     pdf_buffer.seek(0)
@@ -942,11 +866,9 @@ if st.session_state.logged_in:
                         st.success(f"PDF salvo com sucesso no Google Drive! ID: {drive_id}")
                         st.markdown(f"**[Clique aqui para abrir no Google Drive](https://drive.google.com/file/d/{drive_id}/view)**")
 
-                        # --- Envio de E-mail de Notificação ---
                         with st.spinner("Enviando e-mail de notificação..."):
                             assunto_email = f"📋 Novo Diário de Obra - {obra} ({data.strftime('%d/%m/%Y')})"
                             
-                            # Corpo do e-mail em HTML
                             corpo_email_html = f"""
                             <p>Olá, equipe RDV!</p>
                             <p>O diário de obra foi preenchido com sucesso:</p>
@@ -980,8 +902,6 @@ if st.session_state.logged_in:
                 st.error(f"Ocorreu um erro inesperado durante o processamento do relatório: {str(e)}. Por favor, tente novamente.")
 
             finally:
-                # Este bloco garante que o diretório temporário e seus arquivos sejam limpos
-                # após toda a execução, independentemente de sucesso ou falha.
                 try:
                     if temp_dir_obj_for_cleanup and temp_dir_obj_for_cleanup.exists():
                         st.info(f"Limpando diretório temporário de fotos: {temp_dir_obj_for_cleanup}")
@@ -989,7 +909,6 @@ if st.session_state.logged_in:
                 except Exception as e:
                     st.warning(f"Erro ao tentar limpar diretório temporário de fotos: {str(e)}. Por favor, verifique os logs.")
                 
-                # Limpa o arquivo temporário do ícone da página, se ele foi criado
                 try:
                     if temp_icon_path_for_cleanup and os.path.exists(temp_icon_path_for_cleanup):
                         st.info(f"Limpando arquivo temporário do ícone: {temp_icon_path_for_cleanup}")
@@ -998,7 +917,6 @@ if st.session_state.logged_in:
                     st.warning(f"Erro ao tentar limpar arquivo temporário do ícone: {str(e)}. Por favor, verifique os logs.")
 
 
-    # Função para a página de Gerenciamento de Usuários
     def render_user_management_page():
         st.title("Gerenciamento de Usuários")
 
@@ -1026,7 +944,6 @@ if st.session_state.logged_in:
         df_users = pd.DataFrame(user_data, columns=['Username', 'Password Hash', 'Role'])
         st.dataframe(df_users)
 
-    # Lógica de roteamento do menu
     if choice == "Diário de Obra":
         render_diario_obra_page()
     elif choice == "Gerenciamento de Usuários":
