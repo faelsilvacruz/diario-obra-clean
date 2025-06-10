@@ -34,7 +34,7 @@ LOGO_PDF_PATH = "LOGO_RDV_AZUL-sem fundo.png" # Para o cabeçalho do PDF
 
 # Para o ícone da página, usaremos a mesma logo do PDF temporariamente
 # ou você pode criar um "favicon.png" pequeno (e mudar esta linha para "favicon.png")
-LOGO_ICON_PATH = "LOGO_RDV_AZUL-sem fundo.png"
+LOGO_ICON_PATH = "LOGO_RDV_AZUL-sem fundo.png" # Usando a mesma logo do PDF para o ícone da página
 
 
 # ✅ FUNÇÃO PARA CARREGAR IMAGEM COMO BASE64 (PARA LOGIN)
@@ -727,7 +727,7 @@ if st.session_state.logged_in:
 
     # Função para a página do Diário de Obra
     def render_diario_obra_page():
-        # ✅ CARREGAMENTO DE CSVs (Movido para o início da função, antes do formulário)
+        # ✅ CARREGAMENTO DE CSVs (Permanece no início da função, antes do formulário)
         @st.cache_data(ttl=3600) # Adicionado TTL para cache de 1 hora
         def carregar_arquivo_csv(nome_arquivo):
             """Carrega um arquivo CSV e verifica sua existência."""
@@ -763,9 +763,9 @@ if st.session_state.logged_in:
 
         st.title("Relatório Diário de Obra - RDV Engenharia")
 
-        # ✅ NOVO LOCAL DO SLIDER (FORA DO FORM)
-        st.subheader("Efetivo de Pessoal") # Mudei para fora do form para ficar com o slider
-
+        # ✅ SLIDER DE COLABORADORES (PERMANECE FORA DO FORM)
+        # É crucial que ele esteja fora do form para usar on_change e forçar o rerun
+        
         # Inicializa o session_state para qtd_colaboradores se ainda não existe
         if 'qtd_colaboradores_slider' not in st.session_state:
             st.session_state.qtd_colaboradores_slider = 0
@@ -778,7 +778,6 @@ if st.session_state.logged_in:
             max_colabs_slider = 20 # Valor padrão se colaboradores.csv falhar
 
         # O st.slider atualiza o valor no session_state diretamente
-        # AGORA FORA DO FORMULÁRIO, PODE TER on_change
         st.slider(
             "Quantos colaboradores hoje?",
             min_value=0,
@@ -796,7 +795,7 @@ if st.session_state.logged_in:
 
         # Usamos st.form para agrupar os inputs
         with st.form(key="relatorio_form", clear_on_submit=False):
-            st.subheader("Dados Gerais da Obra") # Voltou para dentro do form
+            st.subheader("Dados Gerais da Obra")
             obra = st.selectbox("Obra", obras_lista)
             local = st.text_input("Local")
             data = st.date_input("Data", value=datetime.today())
@@ -805,7 +804,10 @@ if st.session_state.logged_in:
             maquinas = st.text_area("Máquinas e equipamentos utilizados")
             servicos = st.text_area("Serviços executados no dia")
 
-            # --- SEÇÃO EFETIVO DE PESSOAL - RESTO DA LÓGICA DENTRO DO FORM ---
+            # --- SEÇÃO EFETIVO DE PESSOAL (AGORA DENTRO DO FORM, ABAIXO DOS DADOS GERAIS) ---
+            # O st.subheader volta para cá para agrupar visualmente com os campos.
+            st.subheader("Efetivo de Pessoal")
+
             # Carrega colaboradores para os selectboxes internos
             try:
                 colab_df = pd.read_csv("colaboradores.csv")
@@ -814,6 +816,7 @@ if st.session_state.logged_in:
                 colaboradores_lista = []
                 st.warning("Não foi possível carregar a lista de colaboradores (arquivo 'colaboradores.csv' não encontrado ou inválido).")
 
+            # O container e o loop de renderização permanecem como estão, pois dependem do session_state
             efetivo_container = st.container()
             efetivo_lista = []
 
