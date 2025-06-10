@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
-from PIL import Image as PILImage
+from PIL import Image as PILImage # Renomeado para evitar conflito com Image import
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
@@ -31,9 +31,14 @@ import base64
 # ✅ CONSTANTES
 DRIVE_FOLDER_ID = "1BUgZRcBrKksC3eUytoJ5mv_nhMRdAv1d" # ID da pasta no Google Drive
 LOGO_LOGIN_PATH = "LOGO RDV AZUL.jpeg" # Para a tela de login
-LOGO_PDF_PATH = "LOGO_RDV_AZUL-sem fundo.png" # Para o ícone da página e cabeçalho do PDF
+LOGO_PDF_PATH = "LOGO_RDV_AZUL-sem fundo.png" # Para o cabeçalho do PDF
 
-# ✅ FUNÇÃO PARA CARREGAR LOGO COMO BASE64
+# Para o ícone da página, usaremos a mesma logo do PDF temporariamente
+# ou você pode criar um "favicon.png" pequeno (e mudar esta linha para "favicon.png")
+LOGO_ICON_PATH = "LOGO_RDV_AZUL-sem fundo.png" 
+
+
+# ✅ FUNÇÃO PARA CARREGAR IMAGEM COMO BASE64 (PARA LOGIN)
 def get_img_as_base64(file_path):
     """Carrega uma imagem e retorna sua representação em Base64."""
     if not os.path.exists(file_path):
@@ -47,22 +52,82 @@ def get_img_as_base64(file_path):
         st.error(f"Erro ao carregar a logo para Base64: {e}")
         return ""
 
-# Conversão da logo para Base64 para ser usada como ícone da página
-LOGO_PDF_BASE64 = get_img_as_base64(LOGO_PDF_PATH)
+# ✅ FUNÇÃO PARA CARREGAR ÍCONE DA PÁGINA (MAIS ROBUSTA)
+def load_page_icon():
+    """
+    Carrega o ícone para st.set_page_config.
+    Retorna o caminho do arquivo de imagem temporário ou None se houver erro.
+    """
+    # Preferimos um arquivo PNG para o ícone.
+    # Primeiro, verifica se o LOGO_ICON_PATH existe e é um PNG/JPG
+    if LOGO_ICON_PATH and os.path.exists(LOGO_ICON_PATH):
+        try:
+            img = PILImage.open(LOGO_ICON_PATH)
+            img.thumbnail((32, 32), PILImage.Resampling.LANCZOS) # Redimensiona com alta qualidade
+            
+            # Crie um arquivo temporário em disco para o ícone
+            # Esta é uma alternativa mais robusta que o BytesIO para page_icon em alguns casos
+            temp_icon_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+            img.save(temp_icon_file.name, format="PNG")
+            temp_icon_file.close() # Feche o arquivo para garantir que possa ser lido por st.set_page_config
+            return temp_icon_file.name
+        except Exception as e:
+            st.warning(f"Erro ao tentar carregar ou redimensionar LOGO_ICON_PATH para o ícone: {e}")
+            return None # Retorna None para que o set_page_config não use um ícone
+    else:
+        # Se LOGO_ICON_PATH não existe, ou se você quiser usar a logo principal
+        # vamos tentar usar a logo principal do PDF, se ela existir.
+        if os.path.exists(LOGO_PDF_PATH):
+            try:
+                img = PILImage.open(LOGO_PDF_PATH)
+                img.thumbnail((32, 32), PILImage.Resampling.LANCZOS) # Redimensiona com alta qualidade
+                
+                temp_icon_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+                img.save(temp_icon_file.name, format="PNG")
+                temp_icon_file.close() # Feche o arquivo
+                return temp_icon_file.name
+            except Exception as e:
+                st.warning(f"Erro ao tentar carregar ou redimensionar LOGO_PDF_PATH para o ícone: {e}")
+                return None
+        
+        st.warning(f"Nenhum arquivo de imagem válido encontrado para o ícone ({LOGO_ICON_PATH} ou {LOGO_PDF_PATH}).")
+        return None # Retorna None se nenhuma imagem puder ser carregada
 
-# --- LINHA DE DEPURACAO ---
-# Verifique o conteúdo de LOGO_PDF_BASE64
-if not LOGO_PDF_BASE64:
-    st.error("Erro: LOGO_PDF_BASE64 está vazio. A imagem do ícone não pôde ser carregada ou convertida.")
-    st.stop() # Impede que o app continue com um erro
-# --- FIM DA LINHA DE DEPURACAO ---
+# ✅ CONFIGURAÇÃO DA PÁGINA STREAMLIT (COM TRATAMENTO DE ERRO)
+# Esta variável será usada para armazenar o caminho do arquivo temporário do ícone
+# para que possa ser limpa no final da sessão do Streamlit.
+temp_icon_path_for_cleanup = None
 
-# ✅ CONFIGURAÇÃO DA PÁGINA STREAMLIT (DEPOIS da função get_img_as_base64)
-st.set_page_config(
-    page_title="Diário de Obra - RDV",
-    layout="centered",
-    icon=f"data:image/png;base64,{LOGO_PDF_BASE64}" # Ícone da página usando Base64
-)
+try:
+    # Tenta carregar o ícone. Se falhar, page_icon_to_use será None.
+    page_icon_to_use = load_page_icon()
+    
+    if page_icon_to_use:
+        # Armazena o caminho do arquivo temporário para limpeza posterior
+        temp_icon_path_for_cleanup = page_icon_to_use
+        st.set_page_config(
+            page_title="Diário de Obra - RDV",
+            layout="centered",
+            page_icon=page_icon_to_use # Usa o caminho do arquivo temporário
+        )
+    else:
+        # Se não houver ícone válido, configura a página sem ele.
+        st.set_page_config(
+            page_title="Diário de Obra - RDV",
+            layout="centered"
+        )
+except Exception as e:
+    st.warning(f"Erro durante a configuração da página (provavelmente com o ícone): {e}")
+    # Fallback final: configura sem ícone se qualquer erro ocorrer.
+    st.set_page_config(
+        page_title="Diário de Obra - RDV",
+        layout="centered"
+    )
+
+# Adicione esta verificação de caminhos de arquivos para depuração
+for path in [LOGO_LOGIN_PATH, LOGO_PDF_PATH, LOGO_ICON_PATH]:
+    if not os.path.exists(path):
+        st.warning(f"Arquivo não encontrado: {path}. Verifique se os nomes e caminhos estão corretos.")
 
 # ✅ CREDENCIAIS GOOGLE DRIVE
 try:
@@ -411,7 +476,7 @@ def gerar_pdf(registro, fotos_paths):
                     else: # Limite pela altura
                         new_height = max_img_height
                         new_width = max_img_height * aspect_ratio
-                    img = img.resize((int(new_width), int(new_height)), PILImage.LANCZOS) # Redimensiona com alta qualidade
+                    img = img.resize((int(new_width), int(new_height)), PILImage.Resampling.LANCZOS) # Redimensiona com alta qualidade
                 
                 # Calcula a posição X para centralizar a imagem horizontalmente
                 x_pos_img = margem + (max_img_width - new_width) / 2
@@ -469,7 +534,7 @@ def processar_fotos(fotos_upload, obra_nome, data_relatorio):
                 st.info(f"Foto {i+1} salva temporariamente. Tamanho: {caminho_foto_temp.stat().st_size} bytes.")
 
                 img = PILImage.open(caminho_foto_temp)
-                img.thumbnail((1200, 1200))  # Redimensiona mantendo a proporção
+                img.thumbnail((1200, 1200), PILImage.Resampling.LANCZOS)  # Redimensiona mantendo a proporção com qualidade
                 img.save(caminho_foto_temp, "JPEG", quality=85) # Salva como JPEG com compressão
 
                 fotos_processadas_paths.append(str(caminho_foto_temp))
@@ -584,7 +649,7 @@ if not st.session_state.logged_in:
             max-width: 400px;
             margin: 0 auto;
             padding: 2rem;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba{'(0,0,0,0.1)'};
             border-radius: 10px;
             background: white;
         }}
@@ -693,14 +758,15 @@ if st.session_state.logged_in:
             local = st.text_input("Local")
             data = st.date_input("Data", value=datetime.today())
             contrato = st.selectbox("Contrato", contratos_lista)
-            clima = st.selectbox("Condições do dia", ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado"])
+            clima = st.selectbox("Condições do dia", ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado", "Guarda"])
             maquinas = st.text_area("Máquinas e equipamentos utilizados")
             servicos = st.text_area("Serviços executados no dia")
 
             st.subheader("Efetivo de Pessoal")
             # Ajusta o max_value para evitar erros se houver poucos colaboradores no CSV
             max_colab_display = len(colaboradores_lista) if len(colaboradores_lista) > 0 else 10
-            qtd_colaboradores = st.number_input("Quantos colaboradores hoje?", min_value=1, max_value=max_colab_display, step=1)
+            # Adicionado min_value=0 e valor inicial 0 para permitir que o usuário não adicione colaboradores no primeiro momento
+            qtd_colaboradores = st.number_input("Quantos colaboradores hoje?", min_value=0, max_value=max_colab_display, value=0, step=1)
             
             efetivo_lista = []
             for i in range(qtd_colaboradores):
@@ -850,10 +916,19 @@ if st.session_state.logged_in:
                 # após toda a execução, independentemente de sucesso ou falha.
                 try:
                     if temp_dir_obj_for_cleanup and temp_dir_obj_for_cleanup.exists():
-                        st.info(f"Limpando diretório temporário: {temp_dir_obj_for_cleanup}")
+                        st.info(f"Limpando diretório temporário de fotos: {temp_dir_obj_for_cleanup}")
                         shutil.rmtree(temp_dir_obj_for_cleanup)
                 except Exception as e:
-                    st.warning(f"Erro ao tentar limpar arquivos temporários: {str(e)}. Por favor, verifique os logs.")
+                    st.warning(f"Erro ao tentar limpar diretório temporário de fotos: {str(e)}. Por favor, verifique os logs.")
+                
+                # Limpa o arquivo temporário do ícone da página, se ele foi criado
+                try:
+                    if temp_icon_path_for_cleanup and os.path.exists(temp_icon_path_for_cleanup):
+                        st.info(f"Limpando arquivo temporário do ícone: {temp_icon_path_for_cleanup}")
+                        os.remove(temp_icon_path_for_cleanup)
+                except Exception as e:
+                    st.warning(f"Erro ao tentar limpar arquivo temporário do ícone: {str(e)}. Por favor, verifique os logs.")
+
 
     # Função para a página de Gerenciamento de Usuários
     def render_user_management_page():
