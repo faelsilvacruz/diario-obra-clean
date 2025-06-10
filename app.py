@@ -697,42 +697,43 @@ if st.session_state.logged_in:
         obras_lista = [""] + obras_df["Nome"].tolist()
         contratos_lista = [""] + contratos_df["Nome"].tolist()
 
-        st.title("Relatório Diário de Obra - RDV Engenharia")
+        def render_diario_obra_page():
+    # ... (código anterior permanece igual até a parte do layout)
+    
+    st.title("Relatório Diário de Obra - RDV Engenharia")
 
-        # Usamos st.form para agrupar todos os inputs do relatório
-        with st.form(key="relatorio_form", clear_on_submit=False):
-            # Seção 1: Dados Gerais da Obra
-            st.subheader("Dados Gerais da Obra")
-            obra = st.selectbox("Obra", obras_lista)
-            local = st.text_input("Local")
-            data = st.date_input("Data", value=datetime.today())
-            contrato = st.selectbox("Contrato", contratos_lista)
-            clima = st.selectbox("Condições do dia", ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado", "Guarda"])
-            maquinas = st.text_area("Máquinas e equipamentos utilizados")
-            servicos = st.text_area("Serviços executados no dia")
+    # Formulário principal
+    with st.form(key="relatorio_form", clear_on_submit=False):
+        # SEÇÃO 1: DADOS GERAIS (agora aparece primeiro)
+        st.subheader("Dados Gerais da Obra")
+        obra = st.selectbox("Obra", obras_lista)
+        local = st.text_input("Local")
+        data = st.date_input("Data", value=datetime.today())
+        contrato = st.selectbox("Contrato", contratos_lista)
+        clima = st.selectbox("Condições do dia", ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado", "Guarda"])
+        maquinas = st.text_area("Máquinas e equipamentos utilizados")
+        servicos = st.text_area("Serviços executados no dia")
 
-            # Seção 2: Efetivo de Pessoal (agora dentro do form principal)
-            st.markdown("---")
-            st.subheader("Efetivo de Pessoal")
-            
-            if 'qtd_colaboradores_slider' not in st.session_state:
-                st.session_state.qtd_colaboradores_slider = 0
+        st.markdown("---")  # Linha divisória
+        
+        # SEÇÃO 2: EFETIVO (agora aparece depois dos dados gerais)
+        st.subheader("Efetivo de Pessoal")
+        
+        # Slider para quantidade de colaboradores
+        if 'qtd_colaboradores_slider' not in st.session_state:
+            st.session_state.qtd_colaboradores_slider = 0
 
-            try:
-                colab_df_for_slider = pd.read_csv("colaboradores.csv")
-                max_colabs_slider = len(colab_df_for_slider) if not colab_df_for_slider.empty else 20
-            except Exception:
-                max_colabs_slider = 20
+        qtd_colabs = st.slider(
+            "Quantos colaboradores hoje?",
+            min_value=0,
+            max_value=20,
+            value=st.session_state.qtd_colaboradores_slider,
+            step=1,
+            key="num_colabs_slider_main"
+        )
+        st.session_state.qtd_colaboradores_slider = qtd_colabs
 
-            st.slider(
-                "Quantos colaboradores hoje?",
-                min_value=0,
-                max_value=max_colabs_slider,
-                value=st.session_state.qtd_colaboradores_slider,
-                step=1,
-                key="num_colabs_slider_main",
-                on_change=lambda: st.session_state.update(qtd_colaboradores_slider=st.session_state.num_colabs_slider_main)
-            )
+        # ... (restante do código dos colaboradores permanece igual)
 
             # Renderização dos colaboradores baseada no slider
             try:
