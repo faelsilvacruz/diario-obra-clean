@@ -708,7 +708,37 @@ if st.session_state.logged_in:
 
         st.title("Relatório Diário de Obra - RDV Engenharia")
 
+        # --- SEÇÃO DO EFETIVO DE PESSOAL E SLIDER (FORA DO FORM PARA EVITAR ERRO DE CALLBACK) ---
+        # Mantemos o container para agrupamento visual
+        with st.container(border=True):
+            st.subheader("Efetivo de Pessoal")
+
+            if 'qtd_colaboradores_slider' not in st.session_state:
+                st.session_state.qtd_colaboradores_slider = 0
+
+            try:
+                colab_df_for_slider = pd.read_csv("colaboradores.csv")
+                max_colabs_slider = len(colab_df_for_slider) if not colab_df_for_slider.empty else 20
+            except Exception:
+                max_colabs_slider = 20
+
+            # O slider com on_change DEVE estar fora do st.form
+            st.slider(
+                "Quantos colaboradores hoje?",
+                min_value=0,
+                max_value=max_colabs_slider,
+                value=st.session_state.qtd_colaboradores_slider,
+                step=1,
+                key="num_colabs_slider_main",
+                on_change=lambda: st.session_state.update(qtd_colaboradores_slider=st.session_state.num_colabs_slider_main)
+            )
+        # --- FIM DA SEÇÃO DO EFETIVO DE PESSOAL E SLIDER ---
+
+        # O valor para renderizar os expanders é pego do session_state
+        qtd_colaboradores_para_renderizar = st.session_state.qtd_colaboradores_slider
+
         # Usamos st.form para agrupar os inputs PRINCIPAIS DO RELATÓRIO
+        # Este formulário começa logo APÓS o slider de colaboradores.
         with st.form(key="relatorio_form", clear_on_submit=False):
             st.subheader("Dados Gerais da Obra")
             obra = st.selectbox("Obra", obras_lista)
@@ -719,37 +749,8 @@ if st.session_state.logged_in:
             maquinas = st.text_area("Máquinas e equipamentos utilizados")
             servicos = st.text_area("Serviços executados no dia")
 
-            # AGORA ADICIONAMOS A SEÇÃO DE EFETIVO AQUI, DENTRO DO FORM, DEPOIS DOS DADOS GERAIS DA OBRA
+            # ✅ CAMPOS DOS COLABORADORES (AGORA AQUI DENTRO DO FORM)
             st.markdown("---") # Linha divisória para separar visualmente
-            with st.container(border=True): # O border=True ajuda a visualizar o agrupamento
-                st.subheader("Efetivo de Pessoal")
-
-                # Inicializa o session_state para qtd_colaboradores se ainda não existe
-                if 'qtd_colaboradores_slider' not in st.session_state:
-                    st.session_state.qtd_colaboradores_slider = 0
-
-                # Carrega colaboradores para o slider, se necessário para o max_value dinâmico
-                try:
-                    colab_df_for_slider = pd.read_csv("colaboradores.csv")
-                    max_colabs_slider = len(colab_df_for_slider) if not colab_df_for_slider.empty else 20
-                except Exception:
-                    max_colabs_slider = 20 # Valor padrão se colaboradores.csv falhar
-
-                # O st.slider atualiza o valor no session_state diretamente
-                st.slider(
-                    "Quantos colaboradores hoje?",
-                    min_value=0,
-                    max_value=max_colabs_slider,
-                    value=st.session_state.qtd_colaboradores_slider,
-                    step=1,
-                    key="num_colabs_slider_main",
-                    on_change=lambda: st.session_state.update(qtd_colaboradores_slider=st.session_state.num_colabs_slider_main)
-                )
-            
-            # O valor para renderizar os expanders é pego do session_state
-            qtd_colaboradores_para_renderizar = st.session_state.qtd_colaboradores_slider
-
-            # CAMPOS DOS COLABORADORES: continuam aqui, logo após o slider
             st.subheader("Detalhes dos Colaboradores") # Um novo subheader para os detalhes dos colaboradores
             
             try:
@@ -812,6 +813,7 @@ if st.session_state.logged_in:
             nome_fiscal = st.text_input("Nome da fiscalização")
             fotos = st.file_uploader("Fotos do serviço", accept_multiple_files=True, type=["png", "jpg", "jpeg"])
 
+            # O botão de submissão do formulário PRINCIPAL
             submitted = st.form_submit_button("Salvar e Gerar Relatório")
 
         temp_dir_obj_for_cleanup = None 
