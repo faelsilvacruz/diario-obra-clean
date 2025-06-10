@@ -299,22 +299,18 @@ def gerar_pdf(registro, fotos_paths):
         draw_header(c, width, height, LOGO_PDF_PATH)
         y = height - 100
 
-        # 1. Primeiro desenha os dados gerais
         y = draw_info_table(c, registro, width, height, y, margem)
         
-        # --- EXECUTED SERVICES / COMPANY NOTES SECTION ---
         c.setFont("Helvetica-Bold", 10)
         c.drawCentredString(width / 2, y - 10, "Serviços Executados / Anotações da Empresa")
         c.setFont("Helvetica", 10)
         y -= 25
 
-        # (1) CLIMA
         box_clima_h = 20
         c.rect(margem, y - box_clima_h, width - 2*margem, box_clima_h)
         c.drawString(margem + 5, y - 15, f"(1)- CLIMA: {registro.get('Clima', 'N/A')}")
         y -= (box_clima_h + 5)
 
-        # (2) MACHINERY AND EQUIPMENT
         box_maquinas_h = 60
         c.rect(margem, y - box_maquinas_h, width - 2*margem, box_maquinas_h)
         c.drawString(margem + 5, y - 15, "(2)- MÁQUINAS E EQUIPAMENTOS:")
@@ -322,7 +318,6 @@ def gerar_pdf(registro, fotos_paths):
         draw_text_area_with_wrap(c, registro.get('Máquinas', 'Nenhuma máquina/equipamento informado.'), margem + 15, y_text_maquinas, (width - 2*margem) - 20, line_height=12)
         y -= (box_maquinas_h + 5)
 
-        # (3) EXECUTED SERVICES
         box_servicos_h = 100
         c.rect(margem, y - box_servicos_h, width - 2*margem, box_servicos_h)
         c.drawString(margem + 5, y - 15, "(3)- SERVIÇOS EXECUTADOS:")
@@ -330,13 +325,11 @@ def gerar_pdf(registro, fotos_paths):
         draw_text_area_with_wrap(c, registro.get('Serviços', 'Nenhum serviço executado informado.'), margem + 15, y_text_servicos, (width - 2*margem) - 20, line_height=12)
         y -= (box_servicos_h + 5)
 
-        # (4) Efetivo de Pessoal (como proposto)
         c.setFont("Helvetica-Bold", 10)
         c.drawString(margem, y - 10, "(4)- EFETIVO DE PESSOAL")
         y -= 25
         y = draw_efetivo_table(c, registro.get("Efetivo", "[]"), width, height, y, margem) 
 
-        # --- (5) OTHER OCCURRENCES SECTION ---
         c.setFont("Helvetica-Bold", 10)
         c.drawString(margem, y - 10, "(5)- OUTRAS OCORRÊNCIAS:")
         c.setFont("Helvetica", 10)
@@ -348,7 +341,6 @@ def gerar_pdf(registro, fotos_paths):
         draw_text_area_with_wrap(c, registro.get('Ocorrências', 'Nenhuma ocorrência informada.'), margem + 5, y_text_ocorrencias, (width - 2*margem) - 10, line_height=12)
         y -= (box_ocorrencias_h + 10)
 
-        # --- INSPECTION NOTES SECTION ---
         c.setFont("Helvetica-Bold", 10)
         c.drawCentredString(width / 2, y - 10, "ANOTAÇÕES DA FISCALIZAÇÃO")
         c.setFont("Helvetica", 10)
@@ -359,7 +351,6 @@ def gerar_pdf(registro, fotos_paths):
         c.drawString(margem + 5, y - box_fiscalizacao_h + 10, f"Nome da Fiscalização: {registro.get('Fiscalização', 'N/A')}")
         y -= (box_fiscalizacao_h + 10)
 
-        # --- PLUVIOMETRIC MAP SECTION ---
         c.setFont("Helvetica-Bold", 10)
         c.drawCentredString(width / 2, y - 10, "Mapa Pluviométrico")
         c.setFont("Helvetica", 10)
@@ -623,7 +614,7 @@ if not st.session_state.logged_in:
             background: #0A1C36;
         }}
         .stTextInput>div>div>input {{
-            border-radius: 5_px;
+            border-radius: 5px;
             border: 1px solid #ccc;
             padding: 10px;
             width: 100%;
@@ -706,41 +697,11 @@ if st.session_state.logged_in:
         obras_lista = [""] + obras_df["Nome"].tolist()
         contratos_lista = [""] + contratos_df["Nome"].tolist()
 
-        # Título da Página Principal (sempre no topo da página de conteúdo)
         st.title("Relatório Diário de Obra - RDV Engenharia")
 
-        # --- SEÇÃO DO EFETIVO DE PESSOAL E SLIDER (FORA DO FORM PARA EVITAR ERRO DE CALLBACK) ---
-        # Este container virá logo abaixo do título principal
-        with st.container(border=True):
-            st.subheader("Efetivo de Pessoal")
-
-            if 'qtd_colaboradores_slider' not in st.session_state:
-                st.session_state.qtd_colaboradores_slider = 0
-
-            try:
-                colab_df_for_slider = pd.read_csv("colaboradores.csv")
-                max_colabs_slider = len(colab_df_for_slider) if not colab_df_for_slider.empty else 20
-            except Exception:
-                max_colabs_slider = 20
-
-            # O slider com on_change DEVE estar fora do st.form
-            st.slider(
-                "Quantos colaboradores hoje?",
-                min_value=0,
-                max_value=max_colabs_slider,
-                value=st.session_state.qtd_colaboradores_slider,
-                step=1,
-                key="num_colabs_slider_main",
-                on_change=lambda: st.session_state.update(qtd_colaboradores_slider=st.session_state.num_colabs_slider_main)
-            )
-        # --- FIM DA SEÇÃO DO EFETIVO DE PESSOAL E SLIDER ---
-
-        # O valor para renderizar os expanders é pego do session_state
-        qtd_colaboradores_para_renderizar = st.session_state.qtd_colaboradores_slider
-
-        # Usamos st.form para agrupar os inputs PRINCIPAIS DO RELATÓRIO
-        # Este formulário começa logo APÓS o container do efetivo de pessoal.
+        # Usamos st.form para agrupar todos os inputs do relatório
         with st.form(key="relatorio_form", clear_on_submit=False):
+            # Seção 1: Dados Gerais da Obra
             st.subheader("Dados Gerais da Obra")
             obra = st.selectbox("Obra", obras_lista)
             local = st.text_input("Local")
@@ -750,10 +711,30 @@ if st.session_state.logged_in:
             maquinas = st.text_area("Máquinas e equipamentos utilizados")
             servicos = st.text_area("Serviços executados no dia")
 
-            # ✅ CAMPOS DOS COLABORADORES (AGORA AQUI DENTRO DO FORM)
-            st.markdown("---") # Linha divisória para separar visualmente
-            st.subheader("Detalhes dos Colaboradores") # Um novo subheader para os detalhes dos colaboradores
+            # Seção 2: Efetivo de Pessoal (agora dentro do form principal)
+            st.markdown("---")
+            st.subheader("Efetivo de Pessoal")
             
+            if 'qtd_colaboradores_slider' not in st.session_state:
+                st.session_state.qtd_colaboradores_slider = 0
+
+            try:
+                colab_df_for_slider = pd.read_csv("colaboradores.csv")
+                max_colabs_slider = len(colab_df_for_slider) if not colab_df_for_slider.empty else 20
+            except Exception:
+                max_colabs_slider = 20
+
+            st.slider(
+                "Quantos colaboradores hoje?",
+                min_value=0,
+                max_value=max_colabs_slider,
+                value=st.session_state.qtd_colaboradores_slider,
+                step=1,
+                key="num_colabs_slider_main",
+                on_change=lambda: st.session_state.update(qtd_colaboradores_slider=st.session_state.num_colabs_slider_main)
+            )
+
+            # Renderização dos colaboradores baseada no slider
             try:
                 colab_df = pd.read_csv("colaboradores.csv")
                 colaboradores_lista = colab_df["Nome"].tolist()
@@ -761,10 +742,9 @@ if st.session_state.logged_in:
                 colaboradores_lista = []
                 st.warning("Não foi possível carregar a lista de colaboradores (arquivo 'colaboradores.csv' não encontrado ou inválido).")
 
-            # Os expanders dos colaboradores são renderizados AQUI, dentro do formulário
             efetivo_lista = []
-            if qtd_colaboradores_para_renderizar > 0:
-                for i in range(qtd_colaboradores_para_renderizar):
+            if st.session_state.qtd_colaboradores_slider > 0:
+                for i in range(st.session_state.qtd_colaboradores_slider):
                     with st.expander(f"Colaborador {i+1}", expanded=True):
                         options_for_selectbox = [""] + colaboradores_lista if colaboradores_lista else ["Nenhum colaborador disponível"]
                         nome = st.selectbox(
@@ -805,16 +785,15 @@ if st.session_state.logged_in:
                         })
             else:
                 st.info("Ajuste o slider 'Quantos colaboradores hoje?' para adicionar campos de colaboradores.")
-            # --- FIM DA SEÇÃO DETALHES DOS COLABORADORES ---
             
-            st.markdown("---") # Outra linha divisória
+            # Seção 3: Informações Adicionais
+            st.markdown("---")
             st.subheader("Informações Adicionais")
             ocorrencias = st.text_area("Ocorrências")
             nome_empresa = st.text_input("Responsável pela empresa")
             nome_fiscal = st.text_input("Nome da fiscalização")
             fotos = st.file_uploader("Fotos do serviço", accept_multiple_files=True, type=["png", "jpg", "jpeg"])
 
-            # O botão de submissão do formulário PRINCIPAL
             submitted = st.form_submit_button("Salvar e Gerar Relatório")
 
         temp_dir_obj_for_cleanup = None 
