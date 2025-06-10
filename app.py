@@ -20,7 +20,7 @@ import shutil
 # Google API imports
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from googleapiciu.http import MediaIoBaseUpload
+from googleapiclient.http import MediaIoBaseUpload
 from googleapiclient.errors import HttpError
 
 # Autenticação de Usuário imports
