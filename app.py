@@ -698,13 +698,31 @@ if st.session_state.logged_in:
         contratos_lista = [""] + contratos_df["Nome"].tolist()
 
         def render_diario_obra_page():
-    # ... (código anterior permanece igual até a parte do layout)
-    
+    @st.cache_data(ttl=3600)
+    def carregar_arquivo_csv(nome_arquivo):
+        if not os.path.exists(nome_arquivo):
+            st.error(f"Erro: Arquivo de dados '{nome_arquivo}' não encontrado.")
+            return pd.DataFrame()
+        try:
+            return pd.read_csv(nome_arquivo)
+        except Exception as e:
+            st.error(f"Erro ao ler o arquivo '{nome_arquivo}': {e}")
+            return pd.DataFrame()
+
+    obras_df = carregar_arquivo_csv("obras.csv")
+    contratos_df = carregar_arquivo_csv("contratos.csv")
+    colab_df = carregar_arquivo_csv("colaboradores.csv")
+
+    if obras_df.empty or contratos_df.empty:
+        st.stop()
+
+    obras_lista = [""] + obras_df["Nome"].tolist()
+    contratos_lista = [""] + contratos_df["Nome"].tolist()
+    colaboradores_lista = colab_df["Nome"].tolist() if not colab_df.empty else []
+
     st.title("Relatório Diário de Obra - RDV Engenharia")
 
-    # Formulário principal
     with st.form(key="relatorio_form", clear_on_submit=False):
-        # SEÇÃO 1: DADOS GERAIS (agora aparece primeiro)
         st.subheader("Dados Gerais da Obra")
         obra = st.selectbox("Obra", obras_lista)
         local = st.text_input("Local")
@@ -714,88 +732,39 @@ if st.session_state.logged_in:
         maquinas = st.text_area("Máquinas e equipamentos utilizados")
         servicos = st.text_area("Serviços executados no dia")
 
-        st.markdown("---")  # Linha divisória
-        
-        # SEÇÃO 2: EFETIVO (agora aparece depois dos dados gerais)
-        st.subheader("Efetivo de Pessoal")
-        
-        # Slider para quantidade de colaboradores
-        if 'qtd_colaboradores_slider' not in st.session_state:
-            st.session_state.qtd_colaboradores_slider = 0
-
-        qtd_colabs = st.slider(
+        st.subheader("Efetivo de Pessoal e Detalhes dos Colaboradores")
+        max_colabs_slider = len(colaboradores_lista) if colaboradores_lista else 20
+        qtd_colaboradores = st.slider(
             "Quantos colaboradores hoje?",
             min_value=0,
-            max_value=20,
-            value=st.session_state.qtd_colaboradores_slider,
+            max_value=max_colabs_slider,
+            value=st.session_state.get("qtd_colaboradores_slider", 0),
             step=1,
-            key="num_colabs_slider_main"
+            key="qtd_colaboradores_slider"
         )
-        st.session_state.qtd_colaboradores_slider = qtd_colabs
 
-        # ... (restante do código dos colaboradores permanece igual)
+        efetivo_lista = []
+        for i in range(qtd_colaboradores):
+            with st.expander(f"Colaborador {i+1}", expanded=True):
+                nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
+                funcao = ""
+                if nome and nome in colab_df["Nome"].values:
+                    funcao = colab_df.loc[colab_df["Nome"] == nome, "Função"].values[0]
+                funcao = st.text_input("Função", value=funcao, key=f"colab_funcao_{i}")
+                col1, col2 = st.columns(2)
+                with col1:
+                    entrada = st.time_input("Entrada", value=datetime.strptime("08:00", "%H:%M").time(), key=f"colab_entrada_{i}")
+                with col2:
+                    saida = st.time_input("Saída", value=datetime.strptime("17:00", "%H:%M").time(), key=f"colab_saida_{i}")
+                efetivo_lista.append({"Nome": nome, "Função": funcao, "Entrada": entrada.strftime("%H:%M"), "Saída": saida.strftime("%H:%M")})
 
-            # Renderização dos colaboradores baseada no slider
-            try:
-                colab_df = pd.read_csv("colaboradores.csv")
-                colaboradores_lista = colab_df["Nome"].tolist()
-            except Exception: 
-                colaboradores_lista = []
-                st.warning("Não foi possível carregar a lista de colaboradores (arquivo 'colaboradores.csv' não encontrado ou inválido).")
+        st.subheader("Informações Adicionais")
+        ocorrencias = st.text_area("Ocorrências")
+        nome_empresa = st.text_input("Responsável pela empresa")
+        nome_fiscal = st.text_input("Nome da fiscalização")
+        fotos = st.file_uploader("Fotos do serviço", accept_multiple_files=True, type=["png", "jpg", "jpeg"])
 
-            efetivo_lista = []
-            if st.session_state.qtd_colaboradores_slider > 0:
-                for i in range(st.session_state.qtd_colaboradores_slider):
-                    with st.expander(f"Colaborador {i+1}", expanded=True):
-                        options_for_selectbox = [""] + colaboradores_lista if colaboradores_lista else ["Nenhum colaborador disponível"]
-                        nome = st.selectbox(
-                            "Nome",
-                            options=options_for_selectbox,
-                            key=f"colab_nome_{i}"
-                        )
-                        
-                        funcao = ""
-                        if nome and not colab_df.empty and nome in colab_df["Nome"].values:
-                            funcao = colab_df.loc[colab_df["Nome"] == nome, "Função"].values[0]
-                        
-                        funcao = st.text_input(
-                            "Função",
-                            value=funcao,
-                            key=f"colab_funcao_{i}"
-                        )
-                        
-                        col1_time, col2_time = st.columns(2)
-                        with col1_time:
-                            entrada = st.time_input(
-                                "Entrada",
-                                value=datetime.strptime("08:00", "%H:%M").time(),
-                                key=f"colab_entrada_{i}"
-                            )
-                        with col2_time:
-                            saida = st.time_input(
-                                "Saída",
-                                value=datetime.strptime("17:00", "%H:%M").time(),
-                                key=f"colab_saida_{i}"
-                            )
-                        
-                        efetivo_lista.append({
-                            "Nome": nome,
-                            "Função": funcao,
-                            "Entrada": entrada.strftime("%H:%M"),
-                            "Saída": saida.strftime("%H:%M")
-                        })
-            else:
-                st.info("Ajuste o slider 'Quantos colaboradores hoje?' para adicionar campos de colaboradores.")
-            
-            # Seção 3: Informações Adicionais
-            st.markdown("---")
-            st.subheader("Informações Adicionais")
-            ocorrencias = st.text_area("Ocorrências")
-            nome_empresa = st.text_input("Responsável pela empresa")
-            nome_fiscal = st.text_input("Nome da fiscalização")
-            fotos = st.file_uploader("Fotos do serviço", accept_multiple_files=True, type=["png", "jpg", "jpeg"])
-
-            submitted = st.form_submit_button("Salvar e Gerar Relatório")
+        submitted = st.form_submit_button("Salvar e Gerar Relatório")
 
         temp_dir_obj_for_cleanup = None 
         fotos_processed_paths = [] 
