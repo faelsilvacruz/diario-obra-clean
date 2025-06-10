@@ -693,6 +693,7 @@ def render_diario_obra_page():
     st.title("Relatório Diário de Obra - RDV Engenharia")
 
     with st.form(key="relatorio_form", clear_on_submit=False):
+        # 1. DADOS GERAIS DA OBRA (PRIMEIRA SEÇÃO)
         st.subheader("Dados Gerais da Obra")
         obra = st.selectbox("Obra", obras_lista)
         local = st.text_input("Local")
@@ -702,15 +703,18 @@ def render_diario_obra_page():
         maquinas = st.text_area("Máquinas e equipamentos utilizados")
         servicos = st.text_area("Serviços executados no dia")
 
-        st.subheader("Efetivo de Pessoal e Detalhes dos Colaboradores")
+        st.markdown("---") # Linha separadora
+
+        # 2. EFETIVO DE PESSOAL (SEGUNDA SEÇÃO)
+        st.subheader("Efetivo de Pessoal")
         max_colabs_slider = len(colaboradores_lista) if colaboradores_lista else 20
         qtd_colaboradores = st.slider(
             "Quantos colaboradores hoje?",
             min_value=0,
             max_value=max_colabs_slider,
-            value=st.session_state.get("qtd_colaboradores_slider", 0),
+            value=2,  # Alterado para valor padrão 2
             step=1,
-            key="qtd_colaboradores_slider"
+            key="num_colabs" # Alterado para o key mais simples
         )
 
         efetivo_lista = []
@@ -728,6 +732,9 @@ def render_diario_obra_page():
                     saida = st.time_input("Saída", value=datetime.strptime("17:00", "%H:%M").time(), key=f"colab_saida_{i}")
                 efetivo_lista.append({"Nome": nome, "Função": funcao, "Entrada": entrada.strftime("%H:%M"), "Saída": saida.strftime("%H:%M")})
 
+        st.markdown("---") # Linha separadora
+
+        # 3. INFORMAÇÕES ADICIONAIS (TERCEIRA SEÇÃO)
         st.subheader("Informações Adicionais")
         ocorrencias = st.text_area("Ocorrências")
         nome_empresa = st.text_input("Responsável pela empresa")
@@ -737,151 +744,146 @@ def render_diario_obra_page():
         submitted = st.form_submit_button("Salvar e Gerar Relatório")
 
     if submitted:
-        # Resto do processamento...
-        pass
-
-
         temp_dir_obj_for_cleanup = None 
         fotos_processed_paths = [] 
 
-        if submitted:
-            try:
-                if not obra or obra == "":
-                    st.error("Por favor, selecione a 'Obra'.")
-                    st.stop()
-                if not contrato or contrato == "":
-                    st.error("Por favor, selecione o 'Contrato'.")
-                    st.stop()
-                if not nome_empresa:
-                    st.error("Por favor, preencha o campo 'Responsável pela empresa'.")
-                    st.stop()
+        try:
+            if not obra or obra == "":
+                st.error("Por favor, selecione a 'Obra'.")
+                st.stop()
+            if not contrato or contrato == "":
+                st.error("Por favor, selecione o 'Contrato'.")
+                st.stop()
+            if not nome_empresa:
+                st.error("Por favor, preencha o campo 'Responsável pela empresa'.")
+                st.stop()
 
-                registro = {
-                    "Obra": obra,
-                    "Local": local,
-                    "Data": data.strftime("%d/%m/%Y"),
-                    "Contrato": contrato,
-                    "Clima": clima,
-                    "Máquinas": maquinas,
-                    "Serviços": servicos,
-                    "Efetivo": json.dumps(efetivo_lista, ensure_ascii=False),
-                    "Ocorrências": ocorrencias,
-                    "Responsável Empresa": nome_empresa,
-                    "Fiscalização": nome_fiscal
-                }
+            registro = {
+                "Obra": obra,
+                "Local": local,
+                "Data": data.strftime("%d/%m/%Y"),
+                "Contrato": contrato,
+                "Clima": clima,
+                "Máquinas": maquinas,
+                "Serviços": servicos,
+                "Efetivo": json.dumps(efetivo_lista, ensure_ascii=False),
+                "Ocorrências": ocorrencias,
+                "Responsável Empresa": nome_empresa,
+                "Fiscalização": nome_fiscal
+            }
 
-                with st.spinner("Processando fotos... Isso pode levar alguns segundos..."):
-                    fotos_processed_paths = processar_fotos(fotos, obra, data) if fotos else []
-                    
-                    if fotos_processed_paths:
-                        temp_dir_obj_for_cleanup = Path(fotos_processed_paths[0]).parent
-                    elif fotos:
-                        st.warning("⚠️ Nenhuma foto foi processada corretamente. O PDF pode não conter imagens.")
-                        
-                with st.spinner("Gerando PDF..."):
-                    nome_pdf = f"Diario_{obra.replace(' ', '_')}_{data.strftime('%Y-%m-%d')}.pdf"
-                    pdf_buffer = gerar_pdf(registro, fotos_processed_paths)
-
-                    if pdf_buffer is None:
-                        st.error("Falha crítica ao gerar o PDF. Por favor, tente novamente ou verifique os logs para detalhes.")
-                        st.stop()
-                        
-                st.download_button(
-                    label="📥 Baixar Relatório PDF",
-                    data=pdf_buffer,
-                    file_name=nome_pdf,
-                    mime="application/pdf",
-                    type="primary"
-                )
-
-                drive_id = None
-                with st.spinner("Enviando relatório para o Google Drive..."):
-                    pdf_buffer.seek(0)
-                    drive_id = upload_para_drive_seguro(pdf_buffer, nome_pdf)
-
-                    if drive_id:
-                        st.success(f"PDF salvo com sucesso no Google Drive! ID: {drive_id}")
-                        st.markdown(f"**[Clique aqui para abrir no Google Drive](https://drive.google.com/file/d/{drive_id}/view)**")
-
-                        with st.spinner("Enviando e-mail de notificação..."):
-                            assunto_email = f"📋 Novo Diário de Obra - {obra} ({data.strftime('%d/%m/%Y')})"
-                            
-                            corpo_email_html = f"""
-                            <p>Olá, equipe RDV!</p>
-                            <p>O diário de obra foi preenchido com sucesso:</p>
-                            <ul>
-                                <li><strong>Obra:</strong> {obra}</li>
-                                <li><strong>Local:</strong> {local}</li>
-                                <li><strong>Data:</strong> {data.strftime('%d/%m/%Y')}</li>
-                                <li><strong>Responsável:</strong> {nome_empresa}</li>
-                            </ul>
-                            """
-                            destinatarios_email = [
-                                "comercial@rdvengenharia.com.br",
-                                "administrativo@rdvengenharia.com.br"
-                            ]
-                            
-                            if enviar_email(destinatarios_email, assunto_email, corpo_email_html, drive_id):
-                                st.success("📨 E-mail de notificação enviado com sucesso!")
-                            else:
-                                st.warning("""
-                                ⚠️ O PDF foi salvo no Google Drive, mas o e-mail de notificação não foi enviado.
-                                Por favor, verifique os detalhes do erro acima ou nos logs para depuração.
-                                **Possíveis soluções:**
-                                1. Verifique sua conexão com a internet.
-                                2. Confira as configurações de e-mail (usuário e senha) no seu arquivo `.streamlit/secrets.toml`.
-                                3. Certifique-se de estar usando uma **Senha de Aplicativo (App Password)** do Gmail para a senha, se a Verificação em Duas Etapas estiver ativada na sua conta de e-mail.
-                                """)
-                    else:
-                        st.error("O upload para o Google Drive falhou. O e-mail de notificação não foi enviado.")
-
-            except Exception as e:
-                st.error(f"Ocorreu um erro inesperado durante o processamento do relatório: {str(e)}. Por favor, tente novamente.")
-
-            finally:
-                try:
-                    if temp_dir_obj_for_cleanup and temp_dir_obj_for_cleanup.exists():
-                        st.info(f"Limpando diretório temporário de fotos: {temp_dir_obj_for_cleanup}")
-                        shutil.rmtree(temp_dir_obj_for_cleanup)
-                except Exception as e:
-                    st.warning(f"Erro ao tentar limpar diretório temporário de fotos: {str(e)}. Por favor, verifique os logs.")
+            with st.spinner("Processando fotos... Isso pode levar alguns segundos..."):
+                fotos_processed_paths = processar_fotos(fotos, obra, data) if fotos else []
                 
-                try:
-                    if temp_icon_path_for_cleanup and os.path.exists(temp_icon_path_for_cleanup):
-                        st.info(f"Limpando arquivo temporário do ícone: {temp_icon_path_for_cleanup}")
-                        os.remove(temp_icon_path_for_cleanup)
-                except Exception as e:
-                    st.warning(f"Erro ao tentar limpar arquivo temporário do ícone: {str(e)}. Por favor, verifique os logs.")
+                if fotos_processed_paths:
+                    temp_dir_obj_for_cleanup = Path(fotos_processed_paths[0]).parent
+                elif fotos:
+                    st.warning("⚠️ Nenhuma foto foi processada corretamente. O PDF pode não conter imagens.")
+                    
+            with st.spinner("Gerando PDF..."):
+                nome_pdf = f"Diario_{obra.replace(' ', '_')}_{data.strftime('%Y-%m-%d')}.pdf"
+                pdf_buffer = gerar_pdf(registro, fotos_processed_paths)
 
+                if pdf_buffer is None:
+                    st.error("Falha crítica ao gerar o PDF. Por favor, tente novamente ou verifique os logs para detalhes.")
+                    st.stop()
+                    
+            st.download_button(
+                label="📥 Baixar Relatório PDF",
+                data=pdf_buffer,
+                file_name=nome_pdf,
+                mime="application/pdf",
+                type="primary"
+            )
 
-    def render_user_management_page():
-        st.title("Gerenciamento de Usuários")
+            drive_id = None
+            with st.spinner("Enviando relatório para o Google Drive..."):
+                pdf_buffer.seek(0)
+                drive_id = upload_para_drive_seguro(pdf_buffer, nome_pdf)
 
-        if st.session_state.role != "admin":
-            st.warning("Você não tem permissão para acessar esta página.")
-            return
+                if drive_id:
+                    st.success(f"PDF salvo com sucesso no Google Drive! ID: {drive_id}")
+                    st.markdown(f"**[Clique aqui para abrir no Google Drive](https://drive.google.com/file/d/{drive_id}/view)**")
 
-        st.subheader("Adicionar Novo Usuário")
-        with st.form("add_user_form"):
-            new_username = st.text_input("Nome de Usuário")
-            new_password = st.text_input("Senha", type="password")
-            new_role = st.selectbox("Função", ["user", "admin"])
-            add_user_submitted = st.form_submit_button("Adicionar Usuário")
-
-            if add_user_submitted:
-                if new_username and new_password:
-                    hashed_new_password = make_hashes(new_password)
-                    add_userdata(new_username, hashed_new_password, new_role)
-                    st.success(f"Usuário '{new_username}' adicionado com sucesso como '{new_role}'.")
+                    with st.spinner("Enviando e-mail de notificação..."):
+                        assunto_email = f"📋 Novo Diário de Obra - {obra} ({data.strftime('%d/%m/%Y')})"
+                        
+                        corpo_email_html = f"""
+                        <p>Olá, equipe RDV!</p>
+                        <p>O diário de obra foi preenchido com sucesso:</p>
+                        <ul>
+                            <li><strong>Obra:</strong> {obra}</li>
+                            <li><strong>Local:</strong> {local}</li>
+                            <li><strong>Data:</strong> {data.strftime('%d/%m/%Y')}</li>
+                            <li><strong>Responsável:</strong> {nome_empresa}</li>
+                        </ul>
+                        """
+                        destinatarios_email = [
+                            "comercial@rdvengenharia.com.br",
+                            "administrativo@rdvengenharia.com.br"
+                        ]
+                        
+                        if enviar_email(destinatarios_email, assunto_email, corpo_email_html, drive_id):
+                            st.success("📨 E-mail de notificação enviado com sucesso!")
+                        else:
+                            st.warning("""
+                            ⚠️ O PDF foi salvo no Google Drive, mas o e-mail de notificação não foi enviado.
+                            Por favor, verifique os detalhes do erro acima ou nos logs para depuração.
+                            **Possíveis soluções:**
+                            1. Verifique sua conexão com a internet.
+                            2. Confira as configurações de e-mail (usuário e senha) no seu arquivo `.streamlit/secrets.toml`.
+                            3. Certifique-se de estar usando uma **Senha de Aplicativo (App Password)** do Gmail para a senha, se a Verificação em Duas Etapas estiver ativada na sua conta de e-mail.
+                            """)
                 else:
-                    st.error("Preencha todos os campos para adicionar um novo usuário.")
+                    st.error("O upload para o Google Drive falhou. O e-mail de notificação não foi enviado.")
 
-        st.subheader("Usuários Existentes")
-        user_data = view_all_users()
-        df_users = pd.DataFrame(user_data, columns=['Username', 'Password Hash', 'Role'])
-        st.dataframe(df_users)
+        except Exception as e:
+            st.error(f"Ocorreu um erro inesperado durante o processamento do relatório: {str(e)}. Por favor, tente novamente.")
 
-    if choice == "Diário de Obra":
-        render_diario_obra_page()
-    elif choice == "Gerenciamento de Usuários":
-        render_user_management_page()
+        finally:
+            try:
+                if temp_dir_obj_for_cleanup and temp_dir_obj_for_cleanup.exists():
+                    st.info(f"Limpando diretório temporário de fotos: {temp_dir_obj_for_cleanup}")
+                    shutil.rmtree(temp_dir_obj_for_cleanup)
+            except Exception as e:
+                st.warning(f"Erro ao tentar limpar diretório temporário de fotos: {str(e)}. Por favor, verifique os logs.")
+            
+            try:
+                if temp_icon_path_for_cleanup and os.path.exists(temp_icon_path_for_cleanup):
+                    st.info(f"Limpando arquivo temporário do ícone: {temp_icon_path_for_cleanup}")
+                    os.remove(temp_icon_path_for_cleanup)
+            except Exception as e:
+                st.warning(f"Erro ao tentar limpar arquivo temporário do ícone: {str(e)}. Por favor, verifique os logs.")
+
+
+def render_user_management_page():
+    st.title("Gerenciamento de Usuários")
+
+    if st.session_state.role != "admin":
+        st.warning("Você não tem permissão para acessar esta página.")
+        return
+
+    st.subheader("Adicionar Novo Usuário")
+    with st.form("add_user_form"):
+        new_username = st.text_input("Nome de Usuário")
+        new_password = st.text_input("Senha", type="password")
+        new_role = st.selectbox("Função", ["user", "admin"])
+        add_user_submitted = st.form_submit_button("Adicionar Usuário")
+
+        if add_user_submitted:
+            if new_username and new_password:
+                hashed_new_password = make_hashes(new_password)
+                add_userdata(new_username, hashed_new_password, new_role)
+                st.success(f"Usuário '{new_username}' adicionado com sucesso como '{new_role}'.")
+            else:
+                st.error("Preencha todos os campos para adicionar um novo usuário.")
+
+    st.subheader("Usuários Existentes")
+    user_data = view_all_users()
+    df_users = pd.DataFrame(user_data, columns=['Username', 'Password Hash', 'Role'])
+    st.dataframe(df_users)
+
+if choice == "Diário de Obra":
+    render_diario_obra_page()
+elif choice == "Gerenciamento de Usuários":
+    render_user_management_page()
