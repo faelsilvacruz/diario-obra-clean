@@ -787,27 +787,44 @@ if st.session_state.logged_in:
                 colaboradores_lista = []
                 st.warning("Não foi possível carregar a lista de colaboradores (arquivo 'colaboradores.csv' não encontrado ou inválido).")
 
-            # Widget para definir quantidade de colaboradores - COM SLIDER
-            qtd_colaboradores = st.slider(
+            # ✅ ALTERAÇÃO AQUI: USAR SESSION_STATE PARA O SLIDER
+            # A key garante que o widget é identificado.
+            # O on_change garante que o valor é salvo no session_state imediatamente.
+            
+            # Inicializa o session_state para qtd_colaboradores se ainda não existe
+            if 'qtd_colaboradores_slider' not in st.session_state:
+                st.session_state.qtd_colaboradores_slider = 0
+
+            # O st.slider atualiza o valor no session_state diretamente
+            st.slider(
                 "Quantos colaboradores hoje?",
                 min_value=0,
                 max_value=20,
-                value=0,
+                value=st.session_state.qtd_colaboradores_slider, # Usa o valor do session_state
                 step=1,
-                key="num_colabs_slider"
+                key="num_colabs_slider_main", # Chave principal do slider
+                on_change=lambda: st.session_state.update(qtd_colaboradores_slider=st.session_state.num_colabs_slider_main)
+                # O on_change é essencial aqui para garantir que a mudança do slider
+                # force uma re-execução e atualize o session_state.
             )
+            
+            # Agora, o loop de renderização usa o valor do session_state
+            qtd_colaboradores_para_renderizar = st.session_state.qtd_colaboradores_slider
 
             efetivo_container = st.container()
             efetivo_lista = []
 
             with efetivo_container:
-                for i in range(qtd_colaboradores):
+                for i in range(qtd_colaboradores_para_renderizar): # ✅ USA O VALOR DO SESSION_STATE
                     with st.expander(f"Colaborador {i+1}", expanded=True):
                         options_for_selectbox = [""] + colaboradores_lista if colaboradores_lista else ["Nenhum colaborador disponível"]
+                        # É importante que as chaves dos widgets internos sejam consistentes
+                        # para preservar o estado quando o número de colaboradores muda.
+                        # NÂO use timestamp nessas chaves, apenas no slider se necessário.
                         nome = st.selectbox(
                             "Nome",
                             options=options_for_selectbox,
-                            key=f"colab_nome_{i}"
+                            key=f"colab_nome_{i}" # Chave consistente
                         )
                         
                         funcao = ""
@@ -817,7 +834,7 @@ if st.session_state.logged_in:
                         funcao = st.text_input(
                             "Função",
                             value=funcao,
-                            key=f"colab_funcao_{i}"
+                            key=f"colab_funcao_{i}" # Chave consistente
                         )
                         
                         col1_time, col2_time = st.columns(2)
@@ -825,13 +842,13 @@ if st.session_state.logged_in:
                             entrada = st.time_input(
                                 "Entrada",
                                 value=datetime.strptime("08:00", "%H:%M").time(),
-                                key=f"colab_entrada_{i}"
+                                key=f"colab_entrada_{i}" # Chave consistente
                             )
                         with col2_time:
                             saida = st.time_input(
                                 "Saída",
                                 value=datetime.strptime("17:00", "%H:%M").time(),
-                                key=f"colab_saida_{i}"
+                                key=f"colab_saida_{i}" # Chave consistente
                             )
                         
                         efetivo_lista.append({
