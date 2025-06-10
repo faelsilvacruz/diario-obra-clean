@@ -692,6 +692,20 @@ def render_diario_obra_page():
 
     st.title("Relatório Diário de Obra - RDV Engenharia")
 
+    # --- MOVEMOS O SLIDER PARA FORA DO FORMULÁRIO ---
+    # Isso garante que ele atualize a interface imediatamente ao ser alterado
+    st.subheader("Efetivo de Pessoal") # Repetimos o subheader para o slider ficar sob ele
+    max_colabs_slider = len(colaboradores_lista) if colaboradores_lista else 20
+    qtd_colaboradores = st.slider(
+        "Quantos colaboradores hoje?",
+        min_value=0,
+        max_value=max_colabs_slider,
+        value=2,
+        step=1,
+        key="num_colabs"
+    )
+    st.markdown("---") # Adicionamos um separador aqui também para manter a estrutura
+
     with st.form(key="relatorio_form", clear_on_submit=False):
         # 1. DADOS GERAIS DA OBRA (PRIMEIRA SEÇÃO)
         st.subheader("Dados Gerais da Obra")
@@ -704,19 +718,10 @@ def render_diario_obra_page():
         servicos = st.text_area("Serviços executados no dia")
 
         st.markdown("---") # Linha separadora
-
-        # 2. EFETIVO DE PESSOAL (SEGUNDA SEÇÃO)
-        st.subheader("Efetivo de Pessoal")
-        max_colabs_slider = len(colaboradores_lista) if colaboradores_lista else 20
-        qtd_colaboradores = st.slider(
-            "Quantos colaboradores hoje?",
-            min_value=0,
-            max_value=max_colabs_slider,
-            value=2,  # Alterado para valor padrão 2
-            step=1,
-            key="num_colabs" # Alterado para o key mais simples
-        )
-
+        
+        # 2. EFETIVO DE PESSOAL (DETALHES) - Esta parte permanece DENTRO do form
+        # Usamos o qtd_colaboradores definido FORA do form
+        # Não precisamos do st.subheader aqui novamente, pois já o colocamos acima do slider
         efetivo_lista = []
         for i in range(qtd_colaboradores):
             with st.expander(f"Colaborador {i+1}", expanded=True):
