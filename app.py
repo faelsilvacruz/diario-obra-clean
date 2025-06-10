@@ -31,7 +31,10 @@ DRIVE_FOLDER_ID = "1BUgZRcBrKksC3eUytoJ5mv_nhMRdAv1d"
 LOGO_LOGIN_PATH = "LOGO RDV AZUL.jpeg" # Use a logo com fundo para a tela de login
 LOGO_PDF_PATH = "LOGO_RDV_AZUL-sem fundo.png" # Use a logo sem fundo para o PDF
 
-st.set_page_config(page_title="Diário de Obra - RDV", layout="centered", icon=LOGO_PDF_PATH)
+# Converte a logo para Base64 para ser usada como ícone da página
+# Adicione esta linha APÓS a definição de get_img_as_base64 e LOGO_PDF_PATH
+LOGO_PDF_BASE64 = get_img_as_base64(LOGO_PDF_PATH)
+st.set_page_config(page_title="Diário de Obra - RDV", layout="centered", icon=f"data:image/png;base64,{LOGO_PDF_BASE64}")
 
 # ✅ CREDENCIAIS GOOGLE DRIVE
 try:
