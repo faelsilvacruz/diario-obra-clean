@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
-from PIL import Image as PILImage # Renomeado para evitar conflito com Image import
+from PIL import Image as PILImage
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
@@ -20,7 +20,7 @@ import shutil
 # Google API imports
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
+from googleapiciu.http import MediaIoBaseUpload
 from googleapiclient.errors import HttpError
 
 # Autenticação de Usuário imports
@@ -548,9 +548,9 @@ def processar_fotos(fotos_upload, obra_nome, data_relatorio):
         
     except Exception as e:
         st.error(f"Erro crítico no processamento inicial das fotos: {str(e)}")
-        if temp_dir_path_obj and temp_dir_path_obj.exists():
+        if temp_dir_path_obj and temp_dir_obj.exists():
             shutil.rmtree(temp_dir_path_obj)
-            st.warning(f"Diretório temporário {temp_dir_path_obj} limpo devido a erro crítico no processamento inicial das fotos.")
+            st.warning(f"Diretório temporário {temp_dir_obj_for_cleanup} limpo devido a erro crítico no processamento inicial das fotos.")
         return []
 
 
@@ -562,7 +562,7 @@ def upload_para_drive_seguro(pdf_buffer, nome_arquivo):
     """
     try:
         pdf_buffer.seek(0) # Garante que o ponteiro está no início do buffer para leitura
-        service = build("drive", "v3", credentials=creds, static_discovery_docs=False) # static_discovery_docs=False é importante no deploy
+        service = build("drive", "v3", credentials=creds, static_discovery_docs=False)
         media = MediaIoBaseUpload(pdf_buffer, mimetype='application/pdf', resumable=True)
         file_metadata = {'name': nome_arquivo, 'parents': [DRIVE_FOLDER_ID]}
         
@@ -649,7 +649,7 @@ if not st.session_state.logged_in:
             max-width: 400px;
             margin: 0 auto;
             padding: 2rem;
-            box-shadow: 0 4px 8px rgba{'(0,0,0,0.1)'};
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
             border-radius: 10px;
             background: white;
         }}
@@ -738,14 +738,13 @@ if st.session_state.logged_in:
             return pd.read_csv(nome_arquivo)
 
         try:
-            colab_df = carregar_arquivo_csv("colaboradores.csv")
+            # colab_df é carregado dentro da seção de efetivo agora, então removemos daqui
             obras_df = carregar_arquivo_csv("obras.csv")
             contratos_df = carregar_arquivo_csv("contratos.csv")
         except Exception as e:
-            st.error(f"Erro ao carregar arquivos CSV: {e}")
+            st.error(f"Erro ao carregar arquivos CSV (obras.csv, contratos.csv): {e}")
             st.stop()
 
-        colaboradores_lista = colab_df["Nome"].tolist()
         obras_lista = [""] + obras_df["Nome"].tolist() # Adiciona opção vazia
         contratos_lista = [""] + contratos_df["Nome"].tolist() # Adiciona opção vazia
 
@@ -762,32 +761,75 @@ if st.session_state.logged_in:
             maquinas = st.text_area("Máquinas e equipamentos utilizados")
             servicos = st.text_area("Serviços executados no dia")
 
+            # --- NOVA SEÇÃO EFETIVO DE PESSOAL ---
             st.subheader("Efetivo de Pessoal")
-            # Ajusta o max_value para evitar erros se houver poucos colaboradores no CSV
-            max_colab_display = len(colaboradores_lista) if len(colaboradores_lista) > 0 else 10
-            # Adicionado min_value=0 e valor inicial 0 para permitir que o usuário não adicione colaboradores no primeiro momento
-            qtd_colaboradores = st.number_input("Quantos colaboradores hoje?", min_value=0, max_value=max_colab_display, value=0, step=1)
-            
-            efetivo_lista = []
-            for i in range(qtd_colaboradores):
-                with st.expander(f"Colaborador {i+1}"):
-                    # Garante que o selectbox não falha se colaboradores_lista estiver vazia
-                    nome_selecionado = st.selectbox("Nome", colaboradores_lista if colaboradores_lista else ["Nenhum colaborador disponível"], key=f"nome_{i}")
-                    
-                    funcao_sugerida = ""
-                    # Apenas tenta buscar a função se um nome válido for selecionado
-                    if nome_selecionado and nome_selecionado in colab_df["Nome"].values:
-                        funcao_sugerida = colab_df.loc[colab_df["Nome"] == nome_selecionado, "Função"].values[0]
+            # Carrega lista de colaboradores
+            try:
+                colab_df = pd.read_csv("colaboradores.csv")
+                colaboradores_lista = colab_df["Nome"].tolist()
+            except Exception:
+                colaboradores_lista = []
+                st.warning("Arquivo 'colaboradores.csv' não encontrado ou inválido. Verifique o arquivo e o caminho.")
 
-                    funcao_digitada = st.text_input("Função", value=funcao_sugerida, key=f"funcao_{i}")
-                    ent = st.time_input("Entrada", key=f"ent_{i}")
-                    sai = st.time_input("Saída", key=f"sai_{i}")
+            # Número de colaboradores
+            qtd_colaboradores = st.number_input(
+                "Quantos colaboradores hoje?",
+                min_value=0, # Ajustado para 0, para permitir não adicionar colaboradores
+                max_value=20, # Ajustado para um máximo razoável, se lista vazia
+                value=0,  # Valor padrão
+                key="num_colabs"
+            )
+
+            # Lista para armazenar os dados
+            efetivo_lista = []
+
+            # Campos para cada colaborador (AGORA CORRETO)
+            for i in range(qtd_colaboradores):
+                with st.expander(f"Colaborador {i+1}", expanded=True):  # Expanded para abrir automaticamente
+                    # Seleção do nome
+                    # Adiciona uma opção vazia se a lista de colaboradores estiver vazia ou for muito pequena
+                    options_for_selectbox = [""] + colaboradores_lista if colaboradores_lista else ["Nenhum colaborador disponível"]
+                    nome = st.selectbox(
+                        "Nome",
+                        options=options_for_selectbox,
+                        key=f"colab_nome_{i}"
+                    )
+                    
+                    # Campo de função (com sugestão se existir no CSV)
+                    funcao = ""
+                    # Certifica-se de que nome não é vazio e que o df não está vazio
+                    if nome and nome in colab_df["Nome"].values and not colab_df.empty: 
+                        funcao = colab_df.loc[colab_df["Nome"] == nome, "Função"].values[0]
+                    
+                    funcao = st.text_input(
+                        "Função",
+                        value=funcao,
+                        key=f"colab_funcao_{i}"
+                    )
+                    
+                    # Horários
+                    col1_time, col2_time = st.columns(2)
+                    with col1_time:
+                        entrada = st.time_input(
+                            "Entrada",
+                            value=datetime.strptime("08:00", "%H:%M").time(),
+                            key=f"colab_entrada_{i}"
+                        )
+                    with col2_time:
+                        saida = st.time_input(
+                            "Saída",
+                            value=datetime.strptime("17:00", "%H:%M").time(),
+                            key=f"colab_saida_{i}"
+                        )
+                    
+                    # Adiciona ao efetivo
                     efetivo_lista.append({
-                        "Nome": nome_selecionado,
-                        "Função": funcao_digitada,
-                        "Entrada": ent.strftime("%H:%M"),
-                        "Saída": sai.strftime("%H:%M")
+                        "Nome": nome,
+                        "Função": funcao,
+                        "Entrada": entrada.strftime("%H:%M"),
+                        "Saída": saida.strftime("%H:%M")
                     })
+            # --- FIM DA NOVA SEÇÃO EFETIVO DE PESSOAL ---
 
             st.subheader("Informações Adicionais")
             ocorrencias = st.text_area("Ocorrências")
