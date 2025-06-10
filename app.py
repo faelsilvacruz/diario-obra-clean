@@ -697,9 +697,9 @@ if st.session_state.logged_in:
         obras_lista = [""] + obras_df["Nome"].tolist()
         contratos_lista = [""] + contratos_df["Nome"].tolist()
 
-        def render_diario_obra_page():
-    @st.cache_data(ttl=3600)
-    def carregar_arquivo_csv(nome_arquivo):
+    def render_diario_obra_page():
+        @st.cache_data(ttl=3600)
+        def carregar_arquivo_csv(nome_arquivo):
         if not os.path.exists(nome_arquivo):
             st.error(f"Erro: Arquivo de dados '{nome_arquivo}' não encontrado.")
             return pd.DataFrame()
