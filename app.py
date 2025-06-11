@@ -570,7 +570,19 @@ def enviar_email(destinatarios, assunto, corpo_html, drive_id=None):
         st.error("Erro: Credenciais de e-mail não encontradas em '.streamlit/secrets.toml'. Por favor, verifique.")
         return False
     except Exception as e:
-        st.error(f"Falha no envio do e-mail: {str(e)}")
+        st.error(f"""
+        Falha no envio do e-mail: {str(e)}
+        
+        **Causa Comum para 'gaierror: [Errno 11001] getaddrinfo failed':**
+        Este erro geralmente indica um problema de rede ou DNS, onde o aplicativo não conseguiu resolver o endereço do servidor de e-mail (`smtp.gmail.com`) ou se conectar a ele.
+        
+        **Possíveis Soluções:**
+        1.  **Verifique sua conexão com a internet.**
+        2.  **Firewall/Proxy:** Certifique-se de que não há um firewall ou servidor proxy bloqueando o acesso à porta 587 (para STARTTLS) ou 465 (para SSL) para `smtp.gmail.com`.
+        3.  **DNS:** Verifique as configurações de DNS do ambiente onde a aplicação está rodando.
+        4.  **Permissões da Conta Gmail:** Confirme que a "Verificação em Duas Etapas" está ativada e que você gerou uma "Senha de Aplicativo" para usar no `secrets.toml` (em vez da senha normal da conta Google).
+        5.  **Permitir aplicativos menos seguros (legado):** Se a verificação em duas etapas não for uma opção, certifique-se de que "Acesso a apps menos seguros" esteja ativado para a conta de e-mail (embora esta opção esteja sendo descontinuada pelo Google).
+        """)
         return False
 
 
@@ -581,6 +593,10 @@ if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = None
     st.session_state.role = None
+# Inicializa o session_state para o número de colaboradores
+if 'num_colabs_slider' not in st.session_state:
+    # ALTERADO: Valor inicial padrão do slider para 0
+    st.session_state.num_colabs_slider = 0 
 init_db()
 
 # --- Tela de Login ---
@@ -625,19 +641,19 @@ if not st.session_state.logged_in:
             color: #0F2A4D;
         }}
     </style>
-    
     <div class="login-container">
         <div class="logo">
             <img src="data:image/jpeg;base64,{get_img_as_base64(LOGO_LOGIN_PATH)}" width="200">
         </div>
         <h3 style="text-align: center; color: #0F2A4D;">Acesso ao Sistema</h3>
+    </div>
     """, unsafe_allow_html=True)
 
-    with st.form("Login"):
-        username_input = st.text_input("Usuário", placeholder="Digite seu nome de usuário")
-        password_input = st.text_input("Senha", type="password")
+    with st.form("login_form"):
+        username_input = st.text_input("Usuário", placeholder="Digite seu nome de usuário", key="login_username")
+        password_input = st.text_input("Senha", type="password", key="login_password")
         submitted = st.form_submit_button("Entrar")
-        
+
         if submitted:
             if username_input and password_input:
                 hashed_password = make_hashes(password_input)
@@ -651,21 +667,19 @@ if not st.session_state.logged_in:
                     st.error("Credenciais inválidas. Verifique seu usuário e senha.")
             else:
                 st.warning("Por favor, preencha todos os campos.")
-    
-    st.markdown("</div>", unsafe_allow_html=True) 
-    st.stop()
 
+    st.stop()
 
 # ✅ LÓGICA DO APP APÓS LOGIN
 if st.session_state.logged_in:
     st.sidebar.title(f"Bem-vindo, {st.session_state.username}!")
-    st.sidebar.button("Sair", on_click=lambda: st.session_state.clear())
+    st.sidebar.button("Sair", on_click=lambda: st.session_state.clear(), key="logout_button")
 
     menu = ["Diário de Obra"]
     if st.session_state.role == "admin":
         menu.append("Gerenciamento de Usuários")
     
-    choice = st.sidebar.selectbox("Navegar", menu)
+    choice = st.sidebar.selectbox("Navegar", menu, key="sidebar_menu")
 
 def render_diario_obra_page():
     @st.cache_data(ttl=3600)
@@ -681,48 +695,79 @@ def render_diario_obra_page():
 
     obras_df = carregar_arquivo_csv("obras.csv")
     contratos_df = carregar_arquivo_csv("contratos.csv")
-    colab_df = carregar_arquivo_csv("colaboradores.csv")
+    
+    # --- Validação e carregamento de colaboradores.csv ---
+    colab_df = pd.DataFrame()
+    colaboradores_lista = []
+    try:
+        colab_df = pd.read_csv("colaboradores.csv")
+        if not {"Nome", "Função"}.issubset(colab_df.columns):
+            st.error("O arquivo 'colaboradores.csv' deve conter as colunas 'Nome' e 'Função'.")
+            colab_df = pd.DataFrame() # Reseta para DataFrame vazio se colunas faltarem
+        else:
+            colaboradores_lista = colab_df["Nome"].tolist()
+    except FileNotFoundError:
+        st.error("Arquivo 'colaboradores.csv' não encontrado. Por favor, crie-o na mesma pasta da aplicação.")
+    except Exception as e:
+        st.error(f"Erro ao carregar ou processar 'colaboradores.csv': {e}")
+        colab_df = pd.DataFrame()
 
     if obras_df.empty or contratos_df.empty:
         st.stop()
 
     obras_lista = [""] + obras_df["Nome"].tolist()
     contratos_lista = [""] + contratos_df["Nome"].tolist()
-    colaboradores_lista = colab_df["Nome"].tolist() if not colab_df.empty else []
-
+    
     st.title("Relatório Diário de Obra - RDV Engenharia")
 
+    # --- 1. DADOS GERAIS DA OBRA (PRIMEIRA SEÇÃO) ---
+    st.subheader("Dados Gerais da Obra")
+    obra = st.selectbox("Obra", obras_lista, key="obra_select")
+    local = st.text_input("Local", key="local_input")
+    data = st.date_input("Data", value=datetime.today(), key="data_input")
+    contrato = st.selectbox("Contrato", contratos_lista, key="contrato_select")
+    clima = st.selectbox("Condições do dia", ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado", "Guarda"], key="clima_select")
+    maquinas = st.text_area("Máquinas e equipamentos utilizados", key="maquinas_text")
+    servicos = st.text_area("Serviços executados no dia", key="servicos_text")
+
+    st.markdown("---") # Linha separadora para visual
+
+    # --- 2. EFETIVO DE PESSOAL (SLIDER e CONTROLES - FORA DO FORMULÁRIO) ---
+    # Esta seção fica aqui para que o slider possa disparar re-execuções e atualizar os campos dinamicamente.
+    st.subheader("Efetivo de Pessoal")
+    max_colabs_slider = len(colaboradores_lista) if colaboradores_lista else 20
+    
+    # O slider controla a quantidade de colaboradores e usa o session_state para persistência
+    qtd_colaboradores = st.slider(
+        "Quantos colaboradores hoje?",
+        min_value=0,
+        max_value=max_colabs_slider,
+        value=st.session_state.num_colabs_slider, # Usa o valor do session_state
+        step=1,
+        key="num_colabs_slider_widget", # Renomeei a key para ser única para o widget
+        on_change=lambda: st.session_state.update(num_colabs_slider=st.session_state.num_colabs_slider_widget)
+    )
+    
+    # REMOVIDOS: Prints de debug e Botão de reset
+    # st.write(f"Quantidade atual de colaboradores: {qtd_colaboradores}")
+    # st.write(f"Lista de colaboradores disponíveis: {colaboradores_lista}")
+    # if st.button("Resetar número de colaboradores", key="reset_colabs_btn"):
+    #     st.session_state.num_colabs_slider = 2
+    #     st.rerun() # Necessário para re-renderizar o slider com o novo valor do session_state
+
+    st.markdown("---") # Separador antes do formulário principal
+
+    # --- O FORMULÁRIO PRINCIPAL (contém os detalhes dos colaboradores e informações adicionais) ---
     with st.form(key="relatorio_form", clear_on_submit=False):
-        # 1. DADOS GERAIS DA OBRA (PRIMEIRA SEÇÃO)
-        st.subheader("Dados Gerais da Obra")
-        obra = st.selectbox("Obra", obras_lista)
-        local = st.text_input("Local")
-        data = st.date_input("Data", value=datetime.today())
-        contrato = st.selectbox("Contrato", contratos_lista)
-        clima = st.selectbox("Condições do dia", ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado", "Guarda"])
-        maquinas = st.text_area("Máquinas e equipamentos utilizados")
-        servicos = st.text_area("Serviços executados no dia")
-
-        st.markdown("---") # Linha separadora
-
-        # 2. EFETIVO DE PESSOAL (SEGUNDA SEÇÃO)
-        st.subheader("Efetivo de Pessoal")
-        max_colabs_slider = len(colaboradores_lista) if colaboradores_lista else 20
-        qtd_colaboradores = st.slider(
-            "Quantos colaboradores hoje?",
-            min_value=0,
-            max_value=max_colabs_slider,
-            value=2,  # Alterado para valor padrão 2
-            step=1,
-            key="num_colabs" # Alterado para o key mais simples
-        )
-
+        # Os campos individuais dos colaboradores (expansores) são gerados aqui dentro do form
+        # A quantidade deles é definida pelo qtd_colaboradores do slider (que está fora do form)
         efetivo_lista = []
-        for i in range(qtd_colaboradores):
+        for i in range(qtd_colaboradores): 
             with st.expander(f"Colaborador {i+1}", expanded=True):
                 nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
                 funcao = ""
-                if nome and nome in colab_df["Nome"].values:
+                # Garante que colab_df não está vazio antes de tentar acessar
+                if nome and not colab_df.empty and nome in colab_df["Nome"].values:
                     funcao = colab_df.loc[colab_df["Nome"] == nome, "Função"].values[0]
                 funcao = st.text_input("Função", value=funcao, key=f"colab_funcao_{i}")
                 col1, col2 = st.columns(2)
@@ -734,14 +779,14 @@ def render_diario_obra_page():
 
         st.markdown("---") # Linha separadora
 
-        # 3. INFORMAÇÕES ADICIONAIS (TERCEIRA SEÇÃO)
+        # 3. INFORMAÇÕES ADICIONAIS (TERCEIRA SEÇÃO - DENTRO DO FORM)
         st.subheader("Informações Adicionais")
-        ocorrencias = st.text_area("Ocorrências")
-        nome_empresa = st.text_input("Responsável pela empresa")
-        nome_fiscal = st.text_input("Nome da fiscalização")
-        fotos = st.file_uploader("Fotos do serviço", accept_multiple_files=True, type=["png", "jpg", "jpeg"])
+        ocorrencias = st.text_area("Ocorrências", key="ocorrencias_text")
+        nome_empresa = st.text_input("Responsável pela empresa", key="responsavel_empresa_input")
+        nome_fiscal = st.text_input("Nome da fiscalização", key="fiscalizacao_input")
+        fotos = st.file_uploader("Fotos do serviço", accept_multiple_files=True, type=["png", "jpg", "jpeg"], key="fotos_uploader")
 
-        submitted = st.form_submit_button("Salvar e Gerar Relatório")
+        submitted = st.form_submit_button("Salvar e Gerar Relatório", key="submit_button")
 
     if submitted:
         temp_dir_obj_for_cleanup = None 
@@ -864,11 +909,11 @@ def render_user_management_page():
         return
 
     st.subheader("Adicionar Novo Usuário")
-    with st.form("add_user_form"):
-        new_username = st.text_input("Nome de Usuário")
-        new_password = st.text_input("Senha", type="password")
-        new_role = st.selectbox("Função", ["user", "admin"])
-        add_user_submitted = st.form_submit_button("Adicionar Usuário")
+    with st.form("add_user_form", key="add_user_form_key"): # Adicionei key
+        new_username = st.text_input("Nome de Usuário", key="new_username_input")
+        new_password = st.text_input("Senha", type="password", key="new_password_input")
+        new_role = st.selectbox("Função", ["user", "admin"], key="new_role_select")
+        add_user_submitted = st.form_submit_button("Adicionar Usuário", key="add_user_submit")
 
         if add_user_submitted:
             if new_username and new_password:
@@ -881,7 +926,7 @@ def render_user_management_page():
     st.subheader("Usuários Existentes")
     user_data = view_all_users()
     df_users = pd.DataFrame(user_data, columns=['Username', 'Password Hash', 'Role'])
-    st.dataframe(df_users)
+    st.dataframe(df_users, use_container_width=True) # use_container_width para melhor visualização
 
 if choice == "Diário de Obra":
     render_diario_obra_page()
