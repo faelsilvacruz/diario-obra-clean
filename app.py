@@ -735,18 +735,21 @@ def render_diario_obra_page():
     # --- 2. EFETIVO DE PESSOAL (SLIDER e CONTROLES - FORA DO FORMULÁRIO) ---
     # Esta seção fica aqui para que o slider possa disparar re-execuções e atualizar os campos dinamicamente.
     st.subheader("Efetivo de Pessoal")
-    max_colabs_slider = len(colaboradores_lista) if colaboradores_lista else 20
-    
-    # O slider controla a quantidade de colaboradores e usa o session_state para persistência
-    qtd_colaboradores = st.slider(
-        "Quantos colaboradores hoje?",
-        min_value=0,
-        max_value=max_colabs_slider,
-        value=st.session_state.num_colabs_slider, # Usa o valor do session_state
-        step=1,
-        key="num_colabs_slider_widget", # Renomeei a key para ser única para o widget
-        on_change=lambda: st.session_state.update(num_colabs_slider=st.session_state.num_colabs_slider_widget)
-    )
+# Adiciona slider de colaboradores ANTES do uso de qtd_colaboradores
+max_colabs_slider = len(colaboradores_lista) if colaboradores_lista else 20
+qtd_colaboradores = st.slider(
+    "Quantos colaboradores hoje?",
+    min_value=0,
+    max_value=max_colabs_slider,
+    value=st.session_state.get("num_colabs_slider", 0),
+    step=1,
+    key="num_colabs_slider_widget",
+    on_change=lambda: st.session_state.update(num_colabs_slider=st.session_state.num_colabs_slider_widget)
+)
+
+# Atualiza o valor no session_state para uso consistente
+st.session_state.num_colabs_slider = qtd_colaboradores
+
     
     # REMOVIDOS: Prints de debug e Botão de reset
     # st.write(f"Quantidade atual de colaboradores: {qtd_colaboradores}")
