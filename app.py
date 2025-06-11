@@ -31,7 +31,7 @@ import base64
 DRIVE_FOLDER_ID = "1BUgZRcBrKksC3eUytoJ5mv_nhMRcAv1d" # ID da pasta no Google Drive
 LOGO_LOGIN_PATH = "LOGO RDV AZUL.jpeg" # Para a tela de login
 LOGO_PDF_PATH = "LOGO_RDV_AZUL-sem fundo.png" # Para o cabeçalho do PDF
-LOGO_ICON_PATH = "LOGO_RDV_AZUL-sem fundo.png" # Usando a mesma logo do PDF para o ícone da página
+LOGO_ICON_PATH = "LOGO_RDV_AZUL-sem fundo.99999.png" # Usando a mesma logo do PDF para o ícone da página
 
 
 # ✅ FUNÇÃO PARA CARREGAR IMAGEM COMO BASE64 (PARA LOGIN)
@@ -737,14 +737,12 @@ def render_diario_obra_page():
         on_change=lambda: st.session_state.update(num_colabs_slider=st.session_state.num_colabs_slider_widget)
     )
     
-    # Prints de debug (podem ser removidos depois)
-    st.write(f"Quantidade atual de colaboradores: {qtd_colaboradores}")
-    st.write(f"Lista de colaboradores disponíveis: {colaboradores_lista}")
-    
-    # Botão de reset para o número de colaboradores
-    if st.button("Resetar número de colaboradores", key="reset_colabs_btn"):
-        st.session_state.num_colabs_slider = 2
-        st.rerun() # Necessário para re-renderizar o slider com o novo valor do session_state
+    # REMOVIDOS: Prints de debug e Botão de reset
+    # st.write(f"Quantidade atual de colaboradores: {qtd_colaboradores}")
+    # st.write(f"Lista de colaboradores disponíveis: {colaboradores_lista}")
+    # if st.button("Resetar número de colaboradores", key="reset_colabs_btn"):
+    #     st.session_state.num_colabs_slider = 2
+    #     st.rerun() # Necessário para re-renderizar o slider com o novo valor do session_state
 
     st.markdown("---") # Separador antes do formulário principal
 
