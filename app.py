@@ -695,59 +695,79 @@ def render_diario_obra_page():
 
     obras_df = carregar_arquivo_csv("obras.csv")
     contratos_df = carregar_arquivo_csv("contratos.csv")
-    colab_df = carregar_arquivo_csv("colaboradores.csv")
+    
+    # --- Validação e carregamento de colaboradores.csv ---
+    colab_df = pd.DataFrame()
+    colaboradores_lista = []
+    try:
+        colab_df = pd.read_csv("colaboradores.csv")
+        if not {"Nome", "Função"}.issubset(colab_df.columns):
+            st.error("O arquivo 'colaboradores.csv' deve conter as colunas 'Nome' e 'Função'.")
+            colab_df = pd.DataFrame() # Reseta para DataFrame vazio se colunas faltarem
+        else:
+            colaboradores_lista = colab_df["Nome"].tolist()
+    except FileNotFoundError:
+        st.error("Arquivo 'colaboradores.csv' não encontrado. Por favor, crie-o na mesma pasta da aplicação.")
+    except Exception as e:
+        st.error(f"Erro ao carregar ou processar 'colaboradores.csv': {e}")
+        colab_df = pd.DataFrame()
 
     if obras_df.empty or contratos_df.empty:
         st.stop()
 
     obras_lista = [""] + obras_df["Nome"].tolist()
     contratos_lista = [""] + contratos_df["Nome"].tolist()
-    colaboradores_lista = colab_df["Nome"].tolist() if not colab_df.empty else []
-
+    
     st.title("Relatório Diário de Obra - RDV Engenharia")
 
-    # Initialize session state for collaborator count
-    if 'num_colabs' not in st.session_state:
-        st.session_state.num_colabs = 2
+    # --- 1. DADOS GERAIS DA OBRA (PRIMEIRA SEÇÃO) ---
+    st.subheader("Dados Gerais da Obra")
+    obra = st.selectbox("Obra", obras_lista, key="obra_select")
+    local = st.text_input("Local", key="local_input")
+    data = st.date_input("Data", value=datetime.today(), key="data_input")
+    contrato = st.selectbox("Contrato", contratos_lista, key="contrato_select")
+    clima = st.selectbox("Condições do dia", ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado", "Guarda"], key="clima_select")
+    maquinas = st.text_area("Máquinas e equipamentos utilizados", key="maquinas_text")
+    servicos = st.text_area("Serviços executados no dia", key="servicos_text")
 
-    # Main form
+    st.markdown("---") # Linha separadora para visual
+
+    # --- 2. EFETIVO DE PESSOAL (SLIDER e CONTROLES - FORA DO FORMULÁRIO) ---
+    # Esta seção fica aqui para que o slider possa disparar re-execuções e atualizar os campos dinamicamente.
+    st.subheader("Efetivo de Pessoal")
+    max_colabs_slider = len(colaboradores_lista) if colaboradores_lista else 20
+    
+    # O slider controla a quantidade de colaboradores e usa o session_state para persistência
+    qtd_colaboradores = st.slider(
+        "Quantos colaboradores hoje?",
+        min_value=0,
+        max_value=max_colabs_slider,
+        value=st.session_state.num_colabs_slider, # Usa o valor do session_state
+        step=1,
+        key="num_colabs_slider_widget", # Renomeei a key para ser única para o widget
+        on_change=lambda: st.session_state.update(num_colabs_slider=st.session_state.num_colabs_slider_widget)
+    )
+    
+    # REMOVIDOS: Prints de debug e Botão de reset
+    # st.write(f"Quantidade atual de colaboradores: {qtd_colaboradores}")
+    # st.write(f"Lista de colaboradores disponíveis: {colaboradores_lista}")
+    # if st.button("Resetar número de colaboradores", key="reset_colabs_btn"):
+    #     st.session_state.num_colabs_slider = 2
+    #     st.rerun() # Necessário para re-renderizar o slider com o novo valor do session_state
+
+    st.markdown("---") # Separador antes do formulário principal
+
+    # --- O FORMULÁRIO PRINCIPAL (contém os detalhes dos colaboradores e informações adicionais) ---
     with st.form(key="relatorio_form", clear_on_submit=False):
-        # 1. DADOS GERAIS DA OBRA
-        st.subheader("Dados Gerais da Obra")
-        obra = st.selectbox("Obra", obras_lista, key="obra_select")
-        local = st.text_input("Local", key="local_input")
-        data = st.date_input("Data", value=datetime.today(), key="data_input")
-        contrato = st.selectbox("Contrato", contratos_lista, key="contrato_select")
-        clima = st.selectbox("Condições do dia", ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado", "Guarda"], key="clima_select")
-        maquinas = st.text_area("Máquinas e equipamentos utilizados", key="maquinas_text")
-        servicos = st.text_area("Serviços executados no dia", key="servicos_text")
-
-        st.markdown("---")
-        
-        # 2. EFETIVO DE PESSOAL
-        st.subheader("Efetivo de Pessoal")
-        
-        # Slider inside the form
-        max_colabs_slider = len(colaboradores_lista) if colaboradores_lista else 20
-        qtd_colaboradores = st.slider(
-            "Quantos colaboradores hoje?",
-            min_value=0,
-            max_value=max_colabs_slider,
-            value=st.session_state.num_colabs,
-            step=1,
-            key="num_colabs_slider"
-        )
-        
-        # Store in session state
-        st.session_state.num_colabs = qtd_colaboradores
-        
-        # Render collaborator fields
+        # Os campos individuais dos colaboradores (expansores) são gerados aqui dentro do form
+        # A quantidade deles é definida pelo qtd_colaboradores do slider (que está fora do form)
         efetivo_lista = []
-        for i in range(st.session_state.num_colabs):
+        for i in range(qtd_colaboradores): 
             with st.expander(f"Colaborador {i+1}", expanded=True):
                 nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
                 funcao = ""
-                if nome and nome in colab_df["Nome"].values:
+                # Garante que colab_df não está vazio antes de tentar acessar
+                if nome and not colab_df.empty and nome in colab_df["Nome"].values:
                     funcao = colab_df.loc[colab_df["Nome"] == nome, "Função"].values[0]
                 funcao = st.text_input("Função", value=funcao, key=f"colab_funcao_{i}")
                 col1, col2 = st.columns(2)
@@ -757,22 +777,16 @@ def render_diario_obra_page():
                     saida = st.time_input("Saída", value=datetime.strptime("17:00", "%H:%M").time(), key=f"colab_saida_{i}")
                 efetivo_lista.append({"Nome": nome, "Função": funcao, "Entrada": entrada.strftime("%H:%M"), "Saída": saida.strftime("%H:%M")})
 
-        st.markdown("---")
+        st.markdown("---") # Linha separadora
 
-        # 3. INFORMAÇÕES ADICIONAIS
+        # 3. INFORMAÇÕES ADICIONAIS (TERCEIRA SEÇÃO - DENTRO DO FORM)
         st.subheader("Informações Adicionais")
         ocorrencias = st.text_area("Ocorrências", key="ocorrencias_text")
-        nome_empresa = st.text_input("Responsável pela empresa", key="responsavel_input")
-        nome_fiscal = st.text_input("Nome da fiscalização", key="fiscal_input")
+        nome_empresa = st.text_input("Responsável pela empresa", key="responsavel_empresa_input")
+        nome_fiscal = st.text_input("Nome da fiscalização", key="fiscalizacao_input")
         fotos = st.file_uploader("Fotos do serviço", accept_multiple_files=True, type=["png", "jpg", "jpeg"], key="fotos_uploader")
 
-        # Submit button must be INSIDE the form
         submitted = st.form_submit_button("Salvar e Gerar Relatório", key="submit_button")
-
-    # Form submission handling - OUTSIDE the form
-    if submitted:
-        # ... [keep your existing submission handling code] ...
-        pass
 
     if submitted:
         temp_dir_obj_for_cleanup = None 
