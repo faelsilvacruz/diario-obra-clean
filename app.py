@@ -755,38 +755,52 @@ def render_diario_obra_page():
     #     st.session_state.num_colabs_slider = 2
     #     st.rerun() # Necessário para re-renderizar o slider com o novo valor do session_state
 
-    st.markdown("---") # Separador antes do formulário principal
-
     # --- O FORMULÁRIO PRINCIPAL (contém os detalhes dos colaboradores e informações adicionais) ---
-    with st.form(key="relatorio_form", clear_on_submit=False):
-        # Os campos individuais dos colaboradores (expansores) são gerados aqui dentro do form
-        # A quantidade deles é definida pelo qtd_colaboradores do slider (que está fora do form)
-        efetivo_lista = []
-        for i in range(qtd_colaboradores): 
-            with st.expander(f"Colaborador {i+1}", expanded=True):
-                nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
-                funcao = ""
-                # Garante que colab_df não está vazio antes de tentar acessar
-                if nome and not colab_df.empty and nome in colab_df["Nome"].values:
-                    funcao = colab_df.loc[colab_df["Nome"] == nome, "Função"].values[0]
-                funcao = st.text_input("Função", value=funcao, key=f"colab_funcao_{i}")
-                col1, col2 = st.columns(2)
-                with col1:
-                    entrada = st.time_input("Entrada", value=datetime.strptime("08:00", "%H:%M").time(), key=f"colab_entrada_{i}")
-                with col2:
-                    saida = st.time_input("Saída", value=datetime.strptime("17:00", "%H:%M").time(), key=f"colab_saida_{i}")
-                efetivo_lista.append({"Nome": nome, "Função": funcao, "Entrada": entrada.strftime("%H:%M"), "Saída": saida.strftime("%H:%M")})
+st.markdown("---")  # separador antes do form
+with st.form(key="relatorio_form", clear_on_submit=False):
+    st.subheader("Dados Gerais da Obra")
+    obra        = st.selectbox("Obra", obras_lista, key="obra_select_form")
+    local       = st.text_input("Local", key="local_input_form")
+    data        = st.date_input("Data", value=datetime.today(), key="data_input_form")
+    contrato    = st.selectbox("Contrato", contratos_lista, key="contrato_select_form")
+    clima       = st.selectbox("Condições do dia", 
+                      ["Bom","Chuva","Garoa","Impraticável","Feriado","Guarda"], key="clima_select_form")
+    maquinas    = st.text_area("Máquinas e equipamentos utilizados", key="maquinas_text_form")
+    servicos    = st.text_area("Serviços executados no dia", key="servicos_text_form")
 
-        st.markdown("---") # Linha separadora
+    st.markdown("---")
+    st.subheader("Efetivo de Pessoal")
+    # O slider já está fora do form, só exibimos os expanders aqui:
+    for i in range(st.session_state.num_colabs_slider):
+        with st.expander(f"Colaborador {i+1}", expanded=True):
+            nome   = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}_form")
+            funcao = st.text_input("Função", key=f"colab_funcao_{i}_form")
+            c1, c2 = st.columns(2)
+            with c1:
+                entrada = st.time_input("Entrada", 
+                            value=datetime.strptime("08:00","%H:%M").time(),
+                            key=f"colab_entrada_{i}_form")
+            with c2:
+                saida   = st.time_input("Saída", 
+                            value=datetime.strptime("17:00","%H:%M").time(),
+                            key=f"colab_saida_{i}_form")
 
-        # 3. INFORMAÇÕES ADICIONAIS (TERCEIRA SEÇÃO - DENTRO DO FORM)
-        st.subheader("Informações Adicionais")
-        ocorrencias = st.text_area("Ocorrências", key="ocorrencias_text")
-        nome_empresa = st.text_input("Responsável pela empresa", key="responsavel_empresa_input")
-        nome_fiscal = st.text_input("Nome da fiscalização", key="fiscalizacao_input")
-        fotos = st.file_uploader("Fotos do serviço", accept_multiple_files=True, type=["png", "jpg", "jpeg"], key="fotos_uploader")
+    st.markdown("---")
+    st.subheader("Informações Adicionais")
+    ocorrencias     = st.text_area("Ocorrências", key="ocorrencias_text_form")
+    nome_empresa    = st.text_input("Responsável pela empresa", key="responsavel_empresa_input_form")
+    nome_fiscal     = st.text_input("Nome da fiscalização", key="fiscalizacao_input_form")
+    fotos           = st.file_uploader("Fotos do serviço", 
+                       accept_multiple_files=True,
+                       type=["png","jpg","jpeg"],
+                       key="fotos_uploader_form")
 
-        submitted = st.form_submit_button("Salvar e Gerar Relatório", key="submit_button")
+    # ← Este botão precisa estar **dentro** do with st.form()
+    submitted = st.form_submit_button(
+        label="Salvar e Gerar Relatório",
+        key="relatorio_submit_form"
+    )
+
 
     if submitted:
         temp_dir_obj_for_cleanup = None 
