@@ -783,7 +783,6 @@ with st.form(key="relatorio_form", clear_on_submit=False):
 
     # ✅ Botão agora está DENTRO do form
     submitted = st.form_submit_button("Salvar e Gerar Relatório", key="submit_button")
-)
 
     if submitted:
         temp_dir_obj_for_cleanup = None 
