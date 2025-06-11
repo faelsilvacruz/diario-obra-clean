@@ -721,61 +721,61 @@ def render_diario_obra_page():
     st.title("Relatório Diário de Obra - RDV Engenharia")
 
     # --- FORMULÁRIO COMPLETO (Dados Gerais + Efetivo + Info Adicionais) ---
-st.markdown("---")
-with st.form(key="relatorio_form", clear_on_submit=False):
-
-    # 1) Dados Gerais
-    st.subheader("Dados Gerais da Obra")
-    obra     = st.selectbox("Obra", obras_lista,              key="obra_select_form")
-    local    = st.text_input("Local",                         key="local_input_form")
-    data     = st.date_input("Data", datetime.today(),        key="data_input_form")
-    contrato = st.selectbox("Contrato", contratos_lista,      key="contrato_select_form")
-    clima    = st.selectbox("Condições do dia",
-                  ["Bom","Chuva","Garoa","Impraticável","Feriado","Guarda"],
-                  key="clima_select_form")
-    maquinas = st.text_area("Máquinas e equipamentos utilizados",
-                             key="maquinas_text_form")
-    servicos = st.text_area("Serviços executados no dia",     key="servicos_text_form")
-
     st.markdown("---")
+    with st.form(key="relatorio_form", clear_on_submit=False):
 
-    # 2) Efetivo de Pessoal
-    st.subheader("Efetivo de Pessoal")
-    for i in range(st.session_state.num_colabs_slider):
-        with st.expander(f"Colaborador {i+1}", expanded=True):
-            nome   = st.selectbox("Nome", [""] + colaboradores_lista,
-                                  key=f"colab_nome_{i}_form")
-            funcao = st.text_input("Função",                    key=f"colab_funcao_{i}_form")
-            c1, c2 = st.columns(2)
-            with c1:
-                entrada = st.time_input("Entrada",
-                            value=datetime.strptime("08:00","%H:%M").time(),
-                            key=f"colab_entrada_{i}_form")
-            with c2:
-                saida   = st.time_input("Saída",
-                            value=datetime.strptime("17:00","%H:%M").time(),
-                            key=f"colab_saida_{i}_form")
+        # 1) Dados Gerais
+        st.subheader("Dados Gerais da Obra")
+        obra     = st.selectbox("Obra", obras_lista,             key="obra_select_form")
+        local    = st.text_input("Local",                        key="local_input_form")
+        data     = st.date_input("Data", datetime.today(),       key="data_input_form")
+        contrato = st.selectbox("Contrato", contratos_lista,     key="contrato_select_form")
+        clima    = st.selectbox("Condições do dia",
+                      ["Bom","Chuva","Garoa","Impraticável","Feriado","Guarda"],
+                      key="clima_select_form")
+        maquinas = st.text_area("Máquinas e equipamentos utilizados",
+                                 key="maquinas_text_form")
+        servicos = st.text_area("Serviços executados no dia",    key="servicos_text_form")
 
-    st.markdown("---")
+        st.markdown("---")
 
-    # 3) Informações Adicionais
-    st.subheader("Informações Adicionais")
-    ocorrencias  = st.text_area("Ocorrências",                 key="ocorrencias_text_form")
-    nome_empresa = st.text_input("Responsável pela empresa",   key="responsavel_empresa_input_form")
-    nome_fiscal  = st.text_input("Nome da fiscalização",        key="fiscalizacao_input_form")
-    fotos        = st.file_uploader("Fotos do serviço",
-                        accept_multiple_files=True,
-                        type=["png","jpg","jpeg"],
-                        key="fotos_uploader_form")
+        # 2) Efetivo de Pessoal
+        st.subheader("Efetivo de Pessoal")
+        for i in range(st.session_state.num_colabs_slider):
+            with st.expander(f"Colaborador {i+1}", expanded=True):
+                nome   = st.selectbox("Nome", [""] + colaboradores_lista,
+                                      key=f"colab_nome_{i}_form")
+                funcao = st.text_input("Função",                 key=f"colab_funcao_{i}_form")
+                c1, c2 = st.columns(2)
+                with c1:
+                    entrada = st.time_input("Entrada",
+                                value=datetime.strptime("08:00","%H:%M").time(),
+                                key=f"colab_entrada_{i}_form")
+                with c2:
+                    saida   = st.time_input("Saída",
+                                value=datetime.strptime("17:00","%H:%M").time(),
+                                key=f"colab_saida_{i}_form")
 
-    # → Botão de submit dentro do form!
-    submitted = st.form_submit_button(
-        label="Salvar e Gerar Relatório",
-        key="relatorio_submit_form"
-    )
+        st.markdown("---")
 
-# → Aqui, SEM MUDAR NADA, segue seu
-# if submitted:
+        # 3) Informações Adicionais
+        st.subheader("Informações Adicionais")
+        ocorrencias  = st.text_area("Ocorrências",                key="ocorrencias_text_form")
+        nome_empresa = st.text_input("Responsável pela empresa",  key="responsavel_empresa_input_form")
+        nome_fiscal  = st.text_input("Nome da fiscalização",       key="fiscalizacao_input_form")
+        fotos        = st.file_uploader("Fotos do serviço",
+                           accept_multiple_files=True,
+                           type=["png","jpg","jpeg"],
+                           key="fotos_uploader_form")
+
+        # → Botão de submit DENTRO do form
+        submitted = st.form_submit_button(
+            label="Salvar e Gerar Relatório",
+            key="relatorio_submit_form"
+        )
+
+    # ← este if também está indentado dentro da função
+    if submitted:
 #    ... processamento de fotos, gerar PDF, upload, download_button etc.
 
 
