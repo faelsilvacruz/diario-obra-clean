@@ -641,19 +641,19 @@ if not st.session_state.logged_in:
             color: #0F2A4D;
         }}
     </style>
-    
     <div class="login-container">
         <div class="logo">
             <img src="data:image/jpeg;base64,{get_img_as_base64(LOGO_LOGIN_PATH)}" width="200">
         </div>
         <h3 style="text-align: center; color: #0F2A4D;">Acesso ao Sistema</h3>
+    </div>
     """, unsafe_allow_html=True)
 
-    with st.form("Login"):
+    with st.form("login_form"):
         username_input = st.text_input("Usuário", placeholder="Digite seu nome de usuário", key="login_username")
         password_input = st.text_input("Senha", type="password", key="login_password")
-        submitted = st.form_submit_button("Entrar", key="login_submit")
-        
+        submitted = st.form_submit_button("Entrar")
+
         if submitted:
             if username_input and password_input:
                 hashed_password = make_hashes(password_input)
@@ -667,10 +667,8 @@ if not st.session_state.logged_in:
                     st.error("Credenciais inválidas. Verifique seu usuário e senha.")
             else:
                 st.warning("Por favor, preencha todos os campos.")
-    
-    st.markdown("</div>", unsafe_allow_html=True) 
-    st.stop()
 
+    st.stop()
 
 # ✅ LÓGICA DO APP APÓS LOGIN
 if st.session_state.logged_in:
