@@ -31,7 +31,7 @@ import base64
 DRIVE_FOLDER_ID = "1BUgZRcBrKksC3eUytoJ5mv_nhMRcAv1d" # ID da pasta no Google Drive
 LOGO_LOGIN_PATH = "LOGO RDV AZUL.jpeg" # Para a tela de login
 LOGO_PDF_PATH = "LOGO_RDV_AZUL-sem fundo.png" # Para o cabeçalho do PDF
-LOGO_ICON_PATH = "LOGO_RDV_AZUL-sem fundo.99999.png" # Usando a mesma logo do PDF para o ícone da página
+LOGO_ICON_PATH = "LOGO_RDV_AZUL-sem fundo.png" # Usando a mesma logo do PDF para o ícone da página
 
 
 # ✅ FUNÇÃO PARA CARREGAR IMAGEM COMO BASE64 (PARA LOGIN)
@@ -570,7 +570,19 @@ def enviar_email(destinatarios, assunto, corpo_html, drive_id=None):
         st.error("Erro: Credenciais de e-mail não encontradas em '.streamlit/secrets.toml'. Por favor, verifique.")
         return False
     except Exception as e:
-        st.error(f"Falha no envio do e-mail: {str(e)}")
+        st.error(f"""
+        Falha no envio do e-mail: {str(e)}
+        
+        **Causa Comum para 'gaierror: [Errno 11001] getaddrinfo failed':**
+        Este erro geralmente indica um problema de rede ou DNS, onde o aplicativo não conseguiu resolver o endereço do servidor de e-mail (`smtp.gmail.com`) ou se conectar a ele.
+        
+        **Possíveis Soluções:**
+        1.  **Verifique sua conexão com a internet.**
+        2.  **Firewall/Proxy:** Certifique-se de que não há um firewall ou servidor proxy bloqueando o acesso à porta 587 (para STARTTLS) ou 465 (para SSL) para `smtp.gmail.com`.
+        3.  **DNS:** Verifique as configurações de DNS do ambiente onde a aplicação está rodando.
+        4.  **Permissões da Conta Gmail:** Confirme que a "Verificação em Duas Etapas" está ativada e que você gerou uma "Senha de Aplicativo" para usar no `secrets.toml` (em vez da senha normal da conta Google).
+        5.  **Permitir aplicativos menos seguros (legado):** Se a verificação em duas etapas não for uma opção, certifique-se de que "Acesso a apps menos seguros" esteja ativado para a conta de e-mail (embora esta opção esteja sendo descontinuada pelo Google).
+        """)
         return False
 
 
@@ -582,8 +594,9 @@ if 'logged_in' not in st.session_state:
     st.session_state.username = None
     st.session_state.role = None
 # Inicializa o session_state para o número de colaboradores
-if 'num_colabs_slider' not in st.session_state: # Usando um nome de key mais específico
-    st.session_state.num_colabs_slider = 2 # Valor inicial padrão
+if 'num_colabs_slider' not in st.session_state:
+    # ALTERADO: Valor inicial padrão do slider para 0
+    st.session_state.num_colabs_slider = 0 
 init_db()
 
 # --- Tela de Login ---
