@@ -776,6 +776,7 @@ def render_diario_obra_page():
 
     # ← este if também está indentado dentro da função
     if submitted:
+        pass
 #    ... processamento de fotos, gerar PDF, upload, download_button etc.
 
 
