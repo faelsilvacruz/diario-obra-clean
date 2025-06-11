@@ -721,15 +721,11 @@ def render_diario_obra_page():
     st.title("Relatório Diário de Obra - RDV Engenharia")
 
 def render_diario_obra_page():
-    import os
-    import json
-    import shutil
-    from datetime import datetime
-    from pathlib import Path
-    from PIL import Image as PILImage
-    import pandas as pd
-    import streamlit as st
-
+    # Inicialização do estado
+    if 'num_colabs' not in st.session_state:
+        st.session_state.num_colabs = 2
+    
+    # Função para carregar arquivos CSV
     @st.cache_data(ttl=3600)
     def carregar_arquivo_csv(nome_arquivo):
         if not os.path.exists(nome_arquivo):
@@ -741,10 +737,10 @@ def render_diario_obra_page():
             st.error(f"Erro ao ler '{nome_arquivo}': {e}")
             return pd.DataFrame()
 
-    # --- Carrega dados ---
+    # Carrega dados
     obras_df = carregar_arquivo_csv("obras.csv")
     contratos_df = carregar_arquivo_csv("contratos.csv")
-
+    
     # Carrega colaboradores
     colab_df = pd.DataFrame()
     colaboradores_lista = []
@@ -762,78 +758,57 @@ def render_diario_obra_page():
     if obras_df.empty or contratos_df.empty:
         return
 
-    obras_lista     = [""] + obras_df["Nome"].tolist()
+    obras_lista = [""] + obras_df["Nome"].tolist()
     contratos_lista = [""] + contratos_df["Nome"].tolist()
 
     st.title("Relatório Diário de Obra - RDV Engenharia")
 
-    # --- Slider FORA do form ---
-    st.markdown("---")
+    # Slider para quantidade de colaboradores (FORA do form)
     st.subheader("Efetivo de Pessoal")
     max_colabs = len(colaboradores_lista) if colaboradores_lista else 20
     qtd_colaboradores = st.slider(
         "Quantos colaboradores hoje?",
         min_value=0,
         max_value=max_colabs,
-        value=st.session_state.get("num_colabs_slider", 0),
-        key="num_colabs_slider_widget"
+        value=st.session_state.num_colabs,
+        key="slider_colabs"
     )
-    st.session_state.num_colabs_slider = qtd_colaboradores
+    st.session_state.num_colabs = qtd_colaboradores
 
-    # --- Início do form ---
-    st.markdown("---")
+    # Formulário principal
     with st.form(key="relatorio_form", clear_on_submit=False):
-        # 1) Dados Gerais
+        # Seção 1: Dados Gerais
         st.subheader("Dados Gerais da Obra")
-        obra     = st.selectbox("Obra", obras_lista,          key="obra_select_form")
-        local    = st.text_input("Local",                     key="local_input_form")
-        data     = st.date_input("Data", datetime.today(),    key="data_input_form")
-        contrato = st.selectbox("Contrato", contratos_lista,  key="contrato_select_form")
-        clima    = st.selectbox(
-            "Condições do dia",
-            ["Bom","Chuva","Garoa","Impraticável","Feriado","Guarda"],
-            key="clima_select_form"
-        )
-        maquinas = st.text_area(
-            "Máquinas e equipamentos utilizados",
-            key="maquinas_text_form"
-        )
-        servicos = st.text_area(
-            "Serviços executados no dia",
-            key="servicos_text_form"
-        )
+        obra = st.selectbox("Obra", obras_lista, key="obra_select")
+        local = st.text_input("Local", key="local_input")
+        data = st.date_input("Data", datetime.today(), key="data_input")
+        contrato = st.selectbox("Contrato", contratos_lista, key="contrato_select")
+        clima = st.selectbox("Condições do dia", 
+                           ["Bom","Chuva","Garoa","Impraticável","Feriado","Guarda"],
+                           key="clima_select")
+        maquinas = st.text_area("Máquinas e equipamentos utilizados", key="maquinas_text")
+        servicos = st.text_area("Serviços executados no dia", key="servicos_text")
 
         st.markdown("---")
 
-        # 2) Efetivo de Pessoal Detalhado
-        st.subheader("Efetivo de Pessoal Detalhado")
+        # Seção 2: Efetivo de Pessoal
         efetivo_lista = []
-        for i in range(st.session_state.num_colabs_slider):
+        for i in range(st.session_state.num_colabs):
             with st.expander(f"Colaborador {i+1}", expanded=True):
-                nome   = st.selectbox(
-                    "Nome", [""] + colaboradores_lista,
-                    key=f"colab_nome_{i}_form"
-                )
+                nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
                 funcao = ""
-                if nome and not colab_df.empty:
-                    funcao = colab_df.loc[colab_df["Nome"] == nome, "Função"].squeeze()
-                funcao = st.text_input(
-                    "Função", value=funcao,
-                    key=f"colab_funcao_{i}_form"
-                )
-                c1, c2 = st.columns(2)
-                with c1:
-                    entrada = st.time_input(
-                        "Entrada",
-                        value=datetime.strptime("08:00", "%H:%M").time(),
-                        key=f"colab_entrada_{i}_form"
-                    )
-                with c2:
-                    saida = st.time_input(
-                        "Saída",
-                        value=datetime.strptime("17:00", "%H:%M").time(),
-                        key=f"colab_saida_{i}_form"
-                    )
+                if nome and not colab_df.empty and nome in colab_df["Nome"].values:
+                    funcao = colab_df.loc[colab_df["Nome"] == nome, "Função"].values[0]
+                funcao = st.text_input("Função", value=funcao, key=f"colab_funcao_{i}")
+                col1, col2 = st.columns(2)
+                with col1:
+                    entrada = st.time_input("Entrada", 
+                                          value=datetime.strptime("08:00", "%H:%M").time(),
+                                          key=f"colab_entrada_{i}")
+                with col2:
+                    saida = st.time_input("Saída", 
+                                        value=datetime.strptime("17:00", "%H:%M").time(),
+                                        key=f"colab_saida_{i}")
                 efetivo_lista.append({
                     "Nome": nome,
                     "Função": funcao,
@@ -843,39 +818,37 @@ def render_diario_obra_page():
 
         st.markdown("---")
 
-        # 3) Informações Adicionais
+        # Seção 3: Informações Adicionais
         st.subheader("Informações Adicionais")
-        ocorrencias  = st.text_area("Ocorrências",                 key="ocorrencias_text_form")
-        nome_empresa = st.text_input("Responsável pela empresa",   key="responsavel_empresa_input_form")
-        nome_fiscal  = st.text_input("Nome da fiscalização",        key="fiscalizacao_input_form")
-        fotos        = st.file_uploader(
-            "Fotos do serviço",
-            accept_multiple_files=True,
-            type=["png","jpg","jpeg"],
-            key="fotos_uploader_form"
-        )
+        ocorrencias = st.text_area("Ocorrências", key="ocorrencias_text")
+        nome_empresa = st.text_input("Responsável pela empresa", key="responsavel_input")
+        nome_fiscal = st.text_input("Nome da fiscalização", key="fiscalizacao_input")
+        fotos = st.file_uploader("Fotos do serviço", 
+                               accept_multiple_files=True, 
+                               type=["png","jpg","jpeg"],
+                               key="fotos_uploader")
 
-        # Botão de submit DENTRO do form
-        submitted = st.form_submit_button(
-            label="Salvar e Gerar Relatório",
-            key="relatorio_submit_form"
-        )
+        # Botão de submit (DENTRO do form)
+        submitted = st.form_submit_button("💾 Salvar e Gerar Relatório")
 
-    # --- Lógica pós-submissão ---
+    # Lógica de processamento após submissão (FORA do form)
     if submitted:
-        temp_dir_for_cleanup = None
+        temp_dir_obj_for_cleanup = None
+        fotos_processed_paths = []
+        
         try:
-            # Validações
-            if not obra:
-                st.error("Selecione a Obra.")
+            # Validações básicas
+            if not obra or obra == "":
+                st.error("Por favor, selecione a 'Obra'.")
                 st.stop()
-            if not contrato:
-                st.error("Selecione o Contrato.")
+            if not contrato or contrato == "":
+                st.error("Por favor, selecione o 'Contrato'.")
                 st.stop()
             if not nome_empresa:
-                st.error("Preencha o Responsável pela empresa.")
+                st.error("Por favor, preencha o campo 'Responsável pela empresa'.")
                 st.stop()
 
+            # Prepara registro
             registro = {
                 "Obra": obra,
                 "Local": local,
@@ -892,20 +865,21 @@ def render_diario_obra_page():
 
             # Processa fotos
             with st.spinner("Processando fotos..."):
-                fotos_processed = processar_fotos(fotos, obra, data) if fotos else []
-                if fotos_processed:
-                    temp_dir_for_cleanup = Path(fotos_processed[0]).parent
+                fotos_processed_paths = processar_fotos(fotos, obra, data) if fotos else []
+                if fotos_processed_paths:
+                    temp_dir_obj_for_cleanup = Path(fotos_processed_paths[0]).parent
                 elif fotos:
-                    st.warning("⚠️ Nenhuma foto processada corretamente.")
-
+                    st.warning("Nenhuma foto foi processada corretamente. O PDF pode não conter imagens.")
+            
             # Gera PDF
             with st.spinner("Gerando PDF..."):
                 nome_pdf = f"Diario_{obra.replace(' ', '_')}_{data.strftime('%Y-%m-%d')}.pdf"
-                pdf_buffer = gerar_pdf(registro, fotos_processed)
+                pdf_buffer = gerar_pdf(registro, fotos_processed_paths)
+                
                 if pdf_buffer is None:
-                    st.error("Falha ao gerar o PDF.")
+                    st.error("Falha ao gerar o PDF. Verifique os logs.")
                     st.stop()
-
+            
             # Download
             st.download_button(
                 label="📥 Baixar Relatório PDF",
@@ -914,36 +888,47 @@ def render_diario_obra_page():
                 mime="application/pdf",
                 type="primary"
             )
-
-            # Upload para Drive
+            
+            # Upload para Google Drive
             with st.spinner("Enviando para Google Drive..."):
                 pdf_buffer.seek(0)
                 drive_id = upload_para_drive_seguro(pdf_buffer, nome_pdf)
+                
                 if drive_id:
-                    st.success("PDF enviado ao Google Drive.")
+                    st.success(f"PDF salvo no Google Drive! ID: {drive_id}")
                     st.markdown(f"[Abrir no Drive](https://drive.google.com/file/d/{drive_id}/view)")
+                    
                     # Envia e-mail
-                    with st.spinner("Enviando notificação por e-mail..."):
-                        assunto = f"📋 Diário de Obra - {obra} ({data.strftime('%d/%m/%Y')})"
-                        corpo   = f"<p>Olá equipe!</p><p>Diário de Obra preenchido.</p>"
+                    with st.spinner("Enviando e-mail..."):
+                        assunto = f"Diário de Obra - {obra} ({data.strftime('%d/%m/%Y')})"
+                        corpo = f"""
+                        <p>Relatório diário gerado:</p>
+                        <ul>
+                            <li>Obra: {obra}</li>
+                            <li>Data: {data.strftime('%d/%m/%Y')}</li>
+                            <li>Responsável: {nome_empresa}</li>
+                        </ul>
+                        """
                         if enviar_email(
-                            ["comercial@rdvengenharia.com.br","administrativo@rdvengenharia.com.br"],
+                            ["comercial@rdvengenharia.com.br", "administrativo@rdvengenharia.com.br"],
                             assunto, corpo, drive_id
                         ):
-                            st.success("E-mail enviado com sucesso!")
+                            st.success("E-mail enviado!")
                         else:
-                            st.warning("PDF no Drive, mas falha no envio de e-mail.")
+                            st.warning("PDF salvo, mas falha no envio do e-mail.")
                 else:
                     st.error("Falha no upload para o Google Drive.")
-
+        
         except Exception as e:
-            st.error(f"Erro inesperado: {e}")
+            st.error(f"Erro inesperado: {str(e)}")
+        
         finally:
-            if temp_dir_for_cleanup and temp_dir_for_cleanup.exists():
-                shutil.rmtree(temp_dir_for_cleanup)
-
+            # Limpeza de arquivos temporários
+            try:
+                if temp_dir_obj_for_cleanup and temp_dir_obj_for_cleanup.exists():
+                    shutil.rmtree(temp_dir_obj_for_cleanup)
             except Exception as e:
-                st.warning(f"Erro ao tentar limpar diretório temporário de fotos: {str(e)}. Por favor, verifique os logs.")
+                st.warning(f"Erro ao limpar arquivos temporários: {str(e)}")
             
             try:
                 if temp_icon_path_for_cleanup and os.path.exists(temp_icon_path_for_cleanup):
