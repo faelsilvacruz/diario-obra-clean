@@ -758,35 +758,32 @@ def render_diario_obra_page():
     st.markdown("---") # Separador antes do formulário principal
 
     # --- O FORMULÁRIO PRINCIPAL (contém os detalhes dos colaboradores e informações adicionais) ---
-    with st.form(key="relatorio_form", clear_on_submit=False):
-        # Os campos individuais dos colaboradores (expansores) são gerados aqui dentro do form
-        # A quantidade deles é definida pelo qtd_colaboradores do slider (que está fora do form)
-        efetivo_lista = []
-        for i in range(qtd_colaboradores): 
-            with st.expander(f"Colaborador {i+1}", expanded=True):
-                nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
-                funcao = ""
-                # Garante que colab_df não está vazio antes de tentar acessar
-                if nome and not colab_df.empty and nome in colab_df["Nome"].values:
-                    funcao = colab_df.loc[colab_df["Nome"] == nome, "Função"].values[0]
-                funcao = st.text_input("Função", value=funcao, key=f"colab_funcao_{i}")
-                col1, col2 = st.columns(2)
-                with col1:
-                    entrada = st.time_input("Entrada", value=datetime.strptime("08:00", "%H:%M").time(), key=f"colab_entrada_{i}")
-                with col2:
-                    saida = st.time_input("Saída", value=datetime.strptime("17:00", "%H:%M").time(), key=f"colab_saida_{i}")
-                efetivo_lista.append({"Nome": nome, "Função": funcao, "Entrada": entrada.strftime("%H:%M"), "Saída": saida.strftime("%H:%M")})
+with st.form(key="relatorio_form", clear_on_submit=False):
+    efetivo_lista = []
+    for i in range(qtd_colaboradores): 
+        with st.expander(f"Colaborador {i+1}", expanded=True):
+            nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
+            funcao = ""
+            if nome and not colab_df.empty and nome in colab_df["Nome"].values:
+                funcao = colab_df.loc[colab_df["Nome"] == nome, "Função"].values[0]
+            funcao = st.text_input("Função", value=funcao, key=f"colab_funcao_{i}")
+            col1, col2 = st.columns(2)
+            with col1:
+                entrada = st.time_input("Entrada", value=datetime.strptime("08:00", "%H:%M").time(), key=f"colab_entrada_{i}")
+            with col2:
+                saida = st.time_input("Saída", value=datetime.strptime("17:00", "%H:%M").time(), key=f"colab_saida_{i}")
+            efetivo_lista.append({"Nome": nome, "Função": funcao, "Entrada": entrada.strftime("%H:%M"), "Saída": saida.strftime("%H:%M")})
 
-        st.markdown("---") # Linha separadora
+    st.markdown("---")
+    st.subheader("Informações Adicionais")
+    ocorrencias = st.text_area("Ocorrências", key="ocorrencias_text")
+    nome_empresa = st.text_input("Responsável pela empresa", key="responsavel_empresa_input")
+    nome_fiscal = st.text_input("Nome da fiscalização", key="fiscalizacao_input")
+    fotos = st.file_uploader("Fotos do serviço", accept_multiple_files=True, type=["png", "jpg", "jpeg"], key="fotos_uploader")
 
-        # 3. INFORMAÇÕES ADICIONAIS (TERCEIRA SEÇÃO - DENTRO DO FORM)
-        st.subheader("Informações Adicionais")
-        ocorrencias = st.text_area("Ocorrências", key="ocorrencias_text")
-        nome_empresa = st.text_input("Responsável pela empresa", key="responsavel_empresa_input")
-        nome_fiscal = st.text_input("Nome da fiscalização", key="fiscalizacao_input")
-        fotos = st.file_uploader("Fotos do serviço", accept_multiple_files=True, type=["png", "jpg", "jpeg"], key="fotos_uploader")
-
-        submitted = st.form_submit_button("Salvar e Gerar Relatório", key="submit_button")
+    # ✅ Botão agora está DENTRO do form
+    submitted = st.form_submit_button("Salvar e Gerar Relatório", key="submit_button")
+)
 
     if submitted:
         temp_dir_obj_for_cleanup = None 
