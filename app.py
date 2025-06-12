@@ -786,9 +786,9 @@ def render_diario_obra_page():
         max_colabs = len(colaboradores_lista) if colaboradores_lista else 8
         qtd_colaboradores = st.number_input(
             "Quantos colaboradores hoje?",
-            min_value=0,
+            min_value=1,
             max_value=max_colabs,
-            value=st.session_state.get("num_colabs_input", 2),
+            value=1,
             step=1,
             key="num_colabs_input"
         )
