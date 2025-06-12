@@ -721,54 +721,15 @@ def render_diario_obra_page():
     st.title("Relatório Diário de Obra - RDV Engenharia")
 
 def render_diario_obra_page():
-    # Inicialização do estado
+    # 1. Inicialização do estado (FORA do form)
     if 'num_colabs' not in st.session_state:
-        st.session_state.num_colabs = 2  # Valor padrão: 2 colaboradores
-    
-    # Função para carregar arquivos CSV
-    @st.cache_data(ttl=3600)
-    def carregar_arquivo_csv(nome_arquivo):
-        if not os.path.exists(nome_arquivo):
-            st.error(f"Erro: arquivo '{nome_arquivo}' não encontrado.")
-            return pd.DataFrame()
-        try:
-            return pd.read_csv(nome_arquivo)
-        except Exception as e:
-            st.error(f"Erro ao ler '{nome_arquivo}': {e}")
-            return pd.DataFrame()
+        st.session_state.num_colabs = 2  # Valor padrão
 
-    # Carrega dados
-    obras_df = carregar_arquivo_csv("obras.csv")
-    contratos_df = carregar_arquivo_csv("contratos.csv")
-    
-    # Carrega colaboradores
-    colab_df = pd.DataFrame()
-    colaboradores_lista = []
-    try:
-        colab_df = pd.read_csv("colaboradores.csv")
-        if {"Nome", "Função"}.issubset(colab_df.columns):
-            colaboradores_lista = colab_df["Nome"].tolist()
-        else:
-            st.error("'colaboradores.csv' deve ter colunas 'Nome' e 'Função'.")
-    except FileNotFoundError:
-        st.error("Arquivo 'colaboradores.csv' não encontrado.")
-    except Exception as e:
-        st.error(f"Erro ao carregar 'colaboradores.csv': {e}")
-
-    if obras_df.empty or contratos_df.empty:
-        st.warning("Cadastre obras e contratos antes de continuar")
-        return
-
-    obras_lista = [""] + obras_df["Nome"].tolist()
-    contratos_lista = [""] + contratos_df["Nome"].tolist()
+    # [Mantenha todo o código de carregamento de dados... obras_df, contratos_df, etc.]
 
     st.title("Relatório Diário de Obra - RDV Engenharia")
 
-    # Função callback para atualização dinâmica
-    def atualizar_colabs():
-        st.session_state.num_colabs = st.session_state.slider_colabs
-
-    # FORMULÁRIO PRINCIPAL
+    # 2. FORMULÁRIO PRINCIPAL
     with st.form(key="relatorio_form", clear_on_submit=False):
         # Seção 1: Dados Gerais
         st.subheader("Dados Gerais da Obra")
@@ -784,9 +745,14 @@ def render_diario_obra_page():
 
         st.markdown("---")
 
-        # Seção 2: Efetivo de Pessoal (com atualização dinâmica)
+        # Seção 2: Controle de Colaboradores (POSIÇÃO CORRIGIDA)
         st.subheader("Efetivo de Pessoal")
-        qtd_colaboradores = st.slider(
+        
+        # Slider DENTRO do form mas com callback para atualização dinâmica
+        def atualizar_colabs():
+            st.session_state.num_colabs = st.session_state.slider_colabs
+            
+        qtd = st.slider(
             "Quantos colaboradores hoje?",
             min_value=0,
             max_value=len(colaboradores_lista) if colaboradores_lista else 20,
@@ -795,7 +761,7 @@ def render_diario_obra_page():
             on_change=atualizar_colabs  # Atualiza sem precisar submeter
         )
 
-        # Campos dos colaboradores (atualizados dinamicamente)
+        # Campos dos colaboradores (renderizados dinamicamente)
         efetivo_lista = []
         for i in range(st.session_state.num_colabs):
             with st.expander(f"Colaborador {i+1}", expanded=True):
@@ -832,10 +798,10 @@ def render_diario_obra_page():
                                type=["png","jpg","jpeg"],
                                key="fotos_uploader")
 
-        # Botão de submit
+        # Botão de submit (MANTIDO como último elemento)
         submitted = st.form_submit_button("💾 Salvar e Gerar Relatório")
 
-    # Lógica de processamento após submissão
+    # 3. Lógica de processamento (FORA do form)
     if submitted:
         temp_dir_obj_for_cleanup = None
         fotos_processed_paths = []
