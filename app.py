@@ -825,6 +825,8 @@ def render_diario_obra_page():
                                  accept_multiple_files=True,
                                  type=["png", "jpg", "jpeg"],
                                  key="fotos_uploader")
+
+        # ADICIONE O BOTÃO DE SUBMIT AQUI:
         submitted_efetivo = st.form_submit_button("Salvar Efetivo de Pessoal e Gerar Relatório")
     # 3. Lógica de processamento (FORA do form)
     if submitted:
