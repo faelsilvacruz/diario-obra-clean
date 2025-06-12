@@ -793,7 +793,6 @@ def render_diario_obra_page():
             step=1,
             key="num_colabs_input"
         )
-        st.session_state.num_colabs_input = int(qtd_colaboradores)
 
         efetivo_lista = []
         for i in range(st.session_state.num_colabs_input):
