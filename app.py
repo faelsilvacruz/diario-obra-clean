@@ -16,6 +16,12 @@ import yagmail
 import tempfile
 import shutil
 
+# --- INÍCIO DO BLOCO DE DEBUG ---
+st.write("DEBUG: Aplicação Streamlit iniciada. Ponto 1.")
+st.write(f"DEBUG: Caminho da logo de login: {st.session_state.get('LOGO_LOGIN_PATH', 'Não definido')}")
+st.write(f"DEBUG: Caminho da logo PDF: {st.session_state.get('LOGO_PDF_PATH', 'Não definido')}")
+st.write(f"DEBUG: Caminho da logo ícone: {st.session_state.get('LOGO_ICON_PATH', 'Não definido')}")
+
 # Google API imports
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
