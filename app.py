@@ -833,7 +833,7 @@ def render_diario_obra_page():
         # --- Botão único no final ---
         submitted = st.form_submit_button("Salvar e Gerar Relatório")
     # 3. Lógica de processamento (FORA do form)
-    if submitted_efetivo:
+    if submitted:
         temp_dir_obj_for_cleanup = None
         fotos_processed_paths = []
         
