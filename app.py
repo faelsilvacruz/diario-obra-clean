@@ -742,11 +742,9 @@ def render_diario_obra_page():
             st.error(f"Erro ao ler '{nome_arquivo}': {e}")
             return pd.DataFrame()
 
-    # Carrega dados
     obras_df = carregar_arquivo_csv("obras.csv")
     contratos_df = carregar_arquivo_csv("contratos.csv")
 
-    # Carrega colaboradores
     colab_df = pd.DataFrame()
     colaboradores_lista = []
     try:
@@ -769,7 +767,7 @@ def render_diario_obra_page():
     st.title("Relatório Diário de Obra - RDV Engenharia")
     st.markdown("## Dados Gerais da Obra")
 
-    # Number input dinâmico para colaboradores
+    # ------ SOMENTE number_input, sem slider ------
     max_colabs = len(colaboradores_lista) if colaboradores_lista else 8
     qtd_colaboradores = st.number_input(
         "Quantos colaboradores hoje?",
@@ -783,7 +781,6 @@ def render_diario_obra_page():
     st.markdown("---")
 
     with st.form(key="relatorio_form", clear_on_submit=False):
-        # Dados Gerais
         obra = st.selectbox("Obra", obras_lista, key="obra_select")
         local = st.text_input("Local", key="local_input")
         data = st.date_input("Data", datetime.today(), key="data_input")
