@@ -737,10 +737,10 @@ def render_diario_obra_page():
             st.error(f"Erro ao ler o arquivo '{nome_arquivo}': {e}")
             return pd.DataFrame()
 
-    # Carrega as listas de obras, contratos e colaboradores
     obras_df = carregar_arquivo_csv("obras.csv")
     contratos_df = carregar_arquivo_csv("contratos.csv")
 
+    # Carrega colaboradores
     colab_df = pd.DataFrame()
     colaboradores_lista = []
     try:
@@ -760,9 +760,14 @@ def render_diario_obra_page():
     obras_lista = [""] + obras_df["Nome"].tolist()
     contratos_lista = [""] + contratos_df["Nome"].tolist()
 
-    # ---------------- FORMULÁRIO 1: Dados Gerais ----------------
-    with st.form("form_dados_gerais"):
+    # ----------------- FORMULÁRIO ÚNICO -----------------
+    if 'num_colabs_input' not in st.session_state:
+        st.session_state.num_colabs_input = 2
+
+    with st.form("form_diario_obra"):
         st.title("Relatório Diário de Obra - RDV Engenharia")
+
+        # --- Bloco: Dados Gerais da Obra ---
         st.subheader("Dados Gerais da Obra")
         obra = st.selectbox("Obra", obras_lista, key="obra_select")
         local = st.text_input("Local", key="local_input")
@@ -774,14 +779,9 @@ def render_diario_obra_page():
         maquinas = st.text_area("Máquinas e equipamentos utilizados", key="maquinas_text")
         servicos = st.text_area("Serviços executados no dia", key="servicos_text")
 
-    # ---------------- Separador visual ----------------
-    st.markdown("---")
+        st.markdown("---")
 
-    # ---------------- FORMULÁRIO 2: Efetivo de Pessoal ----------------
-    if 'num_colabs_input' not in st.session_state:
-        st.session_state.num_colabs_input = 2
-
-    with st.form("form_efetivo_pessoal"):
+        # --- Bloco: Efetivo de Pessoal ---
         st.subheader("Efetivo de Pessoal")
         max_colabs = len(colaboradores_lista) if colaboradores_lista else 8
         qtd_colaboradores = st.number_input(
@@ -792,9 +792,10 @@ def render_diario_obra_page():
             step=1,
             key="num_colabs_input"
         )
+        # NÃO PRECISA atualizar manualmente o session_state aqui!
 
         efetivo_lista = []
-        for i in range(st.session_state.num_colabs_input):
+        for i in range(int(qtd_colaboradores)):
             with st.expander(f"Colaborador {i+1}", expanded=True):
                 nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
                 funcao = ""
@@ -816,6 +817,11 @@ def render_diario_obra_page():
                     "Entrada": entrada.strftime("%H:%M"),
                     "Saída": saida.strftime("%H:%M")
                 })
+
+        st.markdown("---")
+
+        # --- Bloco: Informações Adicionais ---
+        st.subheader("Informações Adicionais")
         ocorrencias = st.text_area("Ocorrências", key="ocorrencias_text")
         nome_empresa = st.text_input("Responsável pela empresa", key="responsavel_input")
         nome_fiscal = st.text_input("Nome da fiscalização", key="fiscalizacao_input")
@@ -824,8 +830,8 @@ def render_diario_obra_page():
                                  type=["png", "jpg", "jpeg"],
                                  key="fotos_uploader")
 
-        # ADICIONE O BOTÃO DE SUBMIT AQUI:
-        submitted_efetivo = st.form_submit_button("Salvar Efetivo de Pessoal e Gerar Relatório")
+        # --- Botão único no final ---
+        submitted = st.form_submit_button("Salvar e Gerar Relatório")
     # 3. Lógica de processamento (FORA do form)
     if submitted_efetivo:
         temp_dir_obj_for_cleanup = None
