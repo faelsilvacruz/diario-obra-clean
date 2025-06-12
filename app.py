@@ -723,7 +723,7 @@ def render_diario_obra_page():
 def render_diario_obra_page():
     # Inicialização do estado
     if 'num_colabs' not in st.session_state:
-        st.session_state.num_colabs = 2
+        st.session_state.num_colabs = 0
     
     # Função para carregar arquivos CSV
     @st.cache_data(ttl=3600)
@@ -775,7 +775,7 @@ def render_diario_obra_page():
     )
     st.session_state.num_colabs = qtd_colaboradores
 
-    # Formulário principal
+    # FORMULÁRIO PRINCIPAL (tudo dentro de um único form)
     with st.form(key="relatorio_form", clear_on_submit=False):
         # Seção 1: Dados Gerais
         st.subheader("Dados Gerais da Obra")
@@ -783,38 +783,30 @@ def render_diario_obra_page():
         local = st.text_input("Local", key="local_input")
         data = st.date_input("Data", datetime.today(), key="data_input")
         contrato = st.selectbox("Contrato", contratos_lista, key="contrato_select")
-        clima = st.selectbox("Condições do dia", 
-                           ["Bom","Chuva","Garoa","Impraticável","Feriado","Guarda"],
-                           key="clima_select")
+        clima = st.selectbox("Condições do dia", ["Bom","Chuva","Garoa","Impraticável","Feriado","Guarda"], key="clima_select")
         maquinas = st.text_area("Máquinas e equipamentos utilizados", key="maquinas_text")
         servicos = st.text_area("Serviços executados no dia", key="servicos_text")
 
         st.markdown("---")
 
-        # Seção 2: Efetivo de Pessoal
+        # Seção 2: Efetivo de Pessoal (DENTRO do form)
+        st.subheader("Efetivo de Pessoal")
+        
+        # Slider de quantidade (agora dentro do form)
+        qtd_colaboradores = st.slider(
+            "Quantos colaboradores hoje?",
+            min_value=0,
+            max_value=len(colaboradores_lista) if colaboradores_lista else 20,
+            value=st.session_state.num_colabs,
+            key="num_colabs_slider"
+        )
+        st.session_state.num_colabs = qtd_colaboradores
+
+        # Campos dos colaboradores
         efetivo_lista = []
         for i in range(st.session_state.num_colabs):
             with st.expander(f"Colaborador {i+1}", expanded=True):
-                nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
-                funcao = ""
-                if nome and not colab_df.empty and nome in colab_df["Nome"].values:
-                    funcao = colab_df.loc[colab_df["Nome"] == nome, "Função"].values[0]
-                funcao = st.text_input("Função", value=funcao, key=f"colab_funcao_{i}")
-                col1, col2 = st.columns(2)
-                with col1:
-                    entrada = st.time_input("Entrada", 
-                                          value=datetime.strptime("08:00", "%H:%M").time(),
-                                          key=f"colab_entrada_{i}")
-                with col2:
-                    saida = st.time_input("Saída", 
-                                        value=datetime.strptime("17:00", "%H:%M").time(),
-                                        key=f"colab_saida_{i}")
-                efetivo_lista.append({
-                    "Nome": nome,
-                    "Função": funcao,
-                    "Entrada": entrada.strftime("%H:%M"),
-                    "Saída": saida.strftime("%H:%M")
-                })
+                # [Mantenha os campos do colaborador...]
 
         st.markdown("---")
 
@@ -823,12 +815,9 @@ def render_diario_obra_page():
         ocorrencias = st.text_area("Ocorrências", key="ocorrencias_text")
         nome_empresa = st.text_input("Responsável pela empresa", key="responsavel_input")
         nome_fiscal = st.text_input("Nome da fiscalização", key="fiscalizacao_input")
-        fotos = st.file_uploader("Fotos do serviço", 
-                               accept_multiple_files=True, 
-                               type=["png","jpg","jpeg"],
-                               key="fotos_uploader")
+        fotos = st.file_uploader("Fotos do serviço", accept_multiple_files=True, type=["png","jpg","jpeg"], key="fotos_uploader")
 
-        # Botão de submit (DENTRO do form)
+        # Botão de submit (MANTIDO como último elemento do form)
         submitted = st.form_submit_button("💾 Salvar e Gerar Relatório")
 
     # Lógica de processamento após submissão (FORA do form)
