@@ -721,15 +721,10 @@ def render_diario_obra_page():
     st.title("Relatório Diário de Obra - RDV Engenharia")
 
 def render_diario_obra_page():
-    import os
-    import pandas as pd
-    from datetime import datetime
-    import streamlit as st
-
     # Inicialização do estado
     if 'num_colabs' not in st.session_state:
-        st.session_state.num_colabs = 2
-
+        st.session_state.num_colabs = 2  # Valor padrão: 2 colaboradores
+    
     # Função para carregar arquivos CSV
     @st.cache_data(ttl=3600)
     def carregar_arquivo_csv(nome_arquivo):
@@ -742,9 +737,11 @@ def render_diario_obra_page():
             st.error(f"Erro ao ler '{nome_arquivo}': {e}")
             return pd.DataFrame()
 
+    # Carrega dados
     obras_df = carregar_arquivo_csv("obras.csv")
     contratos_df = carregar_arquivo_csv("contratos.csv")
-
+    
+    # Carrega colaboradores
     colab_df = pd.DataFrame()
     colaboradores_lista = []
     try:
@@ -759,41 +756,46 @@ def render_diario_obra_page():
         st.error(f"Erro ao carregar 'colaboradores.csv': {e}")
 
     if obras_df.empty or contratos_df.empty:
+        st.warning("Cadastre obras e contratos antes de continuar")
         return
 
     obras_lista = [""] + obras_df["Nome"].tolist()
     contratos_lista = [""] + contratos_df["Nome"].tolist()
 
     st.title("Relatório Diário de Obra - RDV Engenharia")
-    st.markdown("## Dados Gerais da Obra")
 
-    # ------ SOMENTE number_input, sem slider ------
-    max_colabs = len(colaboradores_lista) if colaboradores_lista else 8
-    qtd_colaboradores = st.number_input(
-        "Quantos colaboradores hoje?",
-        min_value=0,
-        max_value=max_colabs,
-        value=st.session_state.get("num_colabs", 2),
-        step=1,
-        key="num_colabs_input"
-    )
-    st.session_state.num_colabs = int(qtd_colaboradores)
-    st.markdown("---")
+    # Função callback para atualização dinâmica
+    def atualizar_colabs():
+        st.session_state.num_colabs = st.session_state.slider_colabs
 
+    # FORMULÁRIO PRINCIPAL
     with st.form(key="relatorio_form", clear_on_submit=False):
+        # Seção 1: Dados Gerais
+        st.subheader("Dados Gerais da Obra")
         obra = st.selectbox("Obra", obras_lista, key="obra_select")
         local = st.text_input("Local", key="local_input")
         data = st.date_input("Data", datetime.today(), key="data_input")
         contrato = st.selectbox("Contrato", contratos_lista, key="contrato_select")
-        clima = st.selectbox("Condições do dia",
-                             ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado", "Guarda"],
-                             key="clima_select")
+        clima = st.selectbox("Condições do dia", 
+                           ["Bom","Chuva","Garoa","Impraticável","Feriado","Guarda"],
+                           key="clima_select")
         maquinas = st.text_area("Máquinas e equipamentos utilizados", key="maquinas_text")
         servicos = st.text_area("Serviços executados no dia", key="servicos_text")
 
         st.markdown("---")
-        st.subheader("Efetivo de Pessoal")
 
+        # Seção 2: Efetivo de Pessoal (com atualização dinâmica)
+        st.subheader("Efetivo de Pessoal")
+        qtd_colaboradores = st.slider(
+            "Quantos colaboradores hoje?",
+            min_value=0,
+            max_value=len(colaboradores_lista) if colaboradores_lista else 20,
+            value=st.session_state.num_colabs,
+            key="slider_colabs",
+            on_change=atualizar_colabs  # Atualiza sem precisar submeter
+        )
+
+        # Campos dos colaboradores (atualizados dinamicamente)
         efetivo_lista = []
         for i in range(st.session_state.num_colabs):
             with st.expander(f"Colaborador {i+1}", expanded=True):
@@ -804,13 +806,13 @@ def render_diario_obra_page():
                 funcao = st.text_input("Função", value=funcao, key=f"colab_funcao_{i}")
                 col1, col2 = st.columns(2)
                 with col1:
-                    entrada = st.time_input("Entrada",
-                                           value=datetime.strptime("08:00", "%H:%M").time(),
-                                           key=f"colab_entrada_{i}")
+                    entrada = st.time_input("Entrada", 
+                                          value=datetime.strptime("08:00", "%H:%M").time(),
+                                          key=f"colab_entrada_{i}")
                 with col2:
-                    saida = st.time_input("Saída",
-                                         value=datetime.strptime("17:00", "%H:%M").time(),
-                                         key=f"colab_saida_{i}")
+                    saida = st.time_input("Saída", 
+                                        value=datetime.strptime("17:00", "%H:%M").time(),
+                                        key=f"colab_saida_{i}")
                 efetivo_lista.append({
                     "Nome": nome,
                     "Função": funcao,
@@ -819,20 +821,19 @@ def render_diario_obra_page():
                 })
 
         st.markdown("---")
+
+        # Seção 3: Informações Adicionais
         st.subheader("Informações Adicionais")
         ocorrencias = st.text_area("Ocorrências", key="ocorrencias_text")
         nome_empresa = st.text_input("Responsável pela empresa", key="responsavel_input")
         nome_fiscal = st.text_input("Nome da fiscalização", key="fiscalizacao_input")
-        fotos = st.file_uploader("Fotos do serviço",
-                                 accept_multiple_files=True,
-                                 type=["png", "jpg", "jpeg"],
-                                 key="fotos_uploader")
+        fotos = st.file_uploader("Fotos do serviço", 
+                               accept_multiple_files=True, 
+                               type=["png","jpg","jpeg"],
+                               key="fotos_uploader")
 
+        # Botão de submit
         submitted = st.form_submit_button("💾 Salvar e Gerar Relatório")
-
-    if submitted:
-        # Sua lógica de processamento aqui...
-        st.success("Relatório gerado com sucesso!")
 
     # Lógica de processamento após submissão
     if submitted:
@@ -841,15 +842,16 @@ def render_diario_obra_page():
         
         try:
             # Validações básicas
-            if not obra:
-                st.error("Selecione a Obra.")
+            if not obra or obra == "":
+                st.error("Por favor, selecione a 'Obra'.")
                 st.stop()
-            if not contrato:
-                st.error("Selecione o Contrato.")
+            if not contrato or contrato == "":
+                st.error("Por favor, selecione o 'Contrato'.")
                 st.stop()
             if not nome_empresa:
-                st.error("Preencha o Responsável pela empresa.")
+                st.error("Por favor, preencha o campo 'Responsável pela empresa'.")
                 st.stop()
+
             # Prepara registro
             registro = {
                 "Obra": obra,
@@ -915,9 +917,9 @@ def render_diario_obra_page():
                             ["comercial@rdvengenharia.com.br", "administrativo@rdvengenharia.com.br"],
                             assunto, corpo, drive_id
                         ):
-                            st.success("E-mail enviado!")
+                            st.success("E-mail enviado com sucesso!")
                         else:
-                            st.warning("PDF salvo, mas falha no envio do e-mail.")
+                            st.warning("PDF salvo no Drive, mas falha no envio do e-mail.")
                 else:
                     st.error("Falha no upload para o Google Drive.")
         
