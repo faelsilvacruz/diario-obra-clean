@@ -773,7 +773,6 @@ def render_diario_obra_page():
                              key="clima_select")
         maquinas = st.text_area("Máquinas e equipamentos utilizados", key="maquinas_text")
         servicos = st.text_area("Serviços executados no dia", key="servicos_text")
-        submitted_gerais = st.form_submit_button("Salvar Dados Gerais")
 
     # ---------------- Separador visual ----------------
     st.markdown("---")
