@@ -722,220 +722,271 @@ def render_diario_obra_page():
 
 def render_diario_obra_page():
     # Inicialização do estado
-    if 'num_colabs' not in st.session_state:
-        st.session_state.num_colabs = 2
-    
-    # Função para carregar arquivos CSV
-    @st.cache_data(ttl=3600)
-    def carregar_arquivo_csv(nome_arquivo):
-        if not os.path.exists(nome_arquivo):
-            st.error(f"Erro: arquivo '{nome_arquivo}' não encontrado.")
-            return pd.DataFrame()
-        try:
-            return pd.read_csv(nome_arquivo)
-        except Exception as e:
-            st.error(f"Erro ao ler '{nome_arquivo}': {e}")
-            return pd.DataFrame()
+    # Use 'num_colabs_slider' para evitar conflito e ser mais descritivo
+    if 'num_colabs_slider' not in st.session_state:
+        st.session_state.num_colabs_slider = 0 # Inicia com 0 para não exibir campos antes de interagir
 
-    # Carrega dados
-    obras_df = carregar_arquivo_csv("obras.csv")
-    contratos_df = carregar_arquivo_csv("contratos.csv")
+    # [Mantenha todo o código de carregamento de dados do Google Drive ou CSVs]
+    # Certifique-se de que 'load_data_from_drive' está sendo usada para os CSVs
+    # ou que as funções carregar_arquivo_csv, colaboradores_lista, etc. estão bem definidas.
+    # Vou assumir que você tem as funções load_data_from_drive, get_drive_service, etc.
+    # para usar o Drive, como no meu código completo anterior.
     
-    # Carrega colaboradores
-    colab_df = pd.DataFrame()
-    colaboradores_lista = []
-    try:
-        colab_df = pd.read_csv("colaboradores.csv")
-        if {"Nome", "Função"}.issubset(colab_df.columns):
-            colaboradores_lista = colab_df["Nome"].tolist()
+    # --- MUDANÇA IMPORTANTE AQUI ---
+    # Substitua as suas chamadas de carregar_arquivo_csv para usar as funções do Google Drive
+    # que eu forneci na solução anterior (load_data_from_drive).
+    # Caso contrário, você pode ter FileNotFoundError no Streamlit Cloud.
+    # Exemplo:
+    obras_df = load_data_from_drive(DRIVE_FOLDER_ID, "obras.csv")
+    contratos_df = load_data_from_drive(DRIVE_FOLDER_ID, "contratos.csv")
+    colab_df = load_data_from_drive(DRIVE_FOLDER_ID, "colaboradores.csv")
+
+    # Garante que os DataFrames não estão vazios antes de tentar acessá-los e usa as colunas corretas
+    if obras_df.empty:
+        st.warning("Não foi possível carregar o arquivo 'obras.csv' do Google Drive. Verifique a pasta e o arquivo. Usando lista vazia.")
+        obras_lista = [""]
+    else:
+        if 'Obra' not in obras_df.columns:
+            st.error("A coluna 'Obra' não foi encontrada em 'obras.csv'. Verifique o arquivo.")
+            obras_lista = [""]
         else:
-            st.error("'colaboradores.csv' deve ter colunas 'Nome' e 'Função'.")
-    except FileNotFoundError:
-        st.error("Arquivo 'colaboradores.csv' não encontrado.")
-    except Exception as e:
-        st.error(f"Erro ao carregar 'colaboradores.csv': {e}")
+            obras_lista = [""] + obras_df["Obra"].drop_duplicates().sort_values().tolist()
+    
+    if contratos_df.empty:
+        st.warning("Não foi possível carregar o arquivo 'contratos.csv' do Google Drive. Verifique a pasta e o arquivo. Usando lista vazia.")
+        contratos_lista = [""]
+    else:
+        if 'Contrato' not in contratos_df.columns:
+            st.error("A coluna 'Contrato' não foi encontrada em 'contratos.csv'. Verifique o arquivo.")
+            contratos_lista = [""]
+        else:
+            contratos_lista = [""] + contratos_df["Contrato"].drop_duplicates().sort_values().tolist()
 
-    if obras_df.empty or contratos_df.empty:
-        return
-
-    obras_lista = [""] + obras_df["Nome"].tolist()
-    contratos_lista = [""] + contratos_df["Nome"].tolist()
+    if colab_df.empty:
+        st.warning("Não foi possível carregar o arquivo 'colaboradores.csv' do Google Drive. Verifique a pasta e o arquivo. Usando lista vazia.")
+        colaboradores_lista = []
+    else:
+        if not {"Nome", "Função"}.issubset(colab_df.columns):
+            st.error("O arquivo 'colaboradores.csv' do Google Drive deve conter as colunas 'Nome' e 'Função'.")
+            colaboradores_lista = []
+        else:
+            colaboradores_lista = colab_df["Nome"].drop_duplicates().sort_values().tolist()
+    # --- FIM DA MUDANÇA IMPORTANTE ---
 
     st.title("Relatório Diário de Obra - RDV Engenharia")
 
-    # Slider para quantidade de colaboradores (FORA do form)
+    # ✅ Seção 1: Dados Gerais (MOVIDO PARA FORA DO FORMULÁRIO)
+    st.subheader("Dados Gerais da Obra")
+    obra = st.selectbox("Obra", obras_lista, key="obra_select")
+    local = st.text_input("Local", key="local_input")
+    data = st.date_input("Data", value=datetime.today(), key="data_input") # Use value=
+    contrato = st.selectbox("Contrato", contratos_lista, key="contrato_select")
+    clima = st.selectbox("Condições do dia",
+                         ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado", "Guarda"],
+                         key="clima_select")
+    maquinas = st.text_area("Máquinas e equipamentos utilizados", key="maquinas_text")
+    servicos = st.text_area("Serviços executados no dia", key="servicos_text")
+
+    st.markdown("---") # Linha separadora
+
+    # ✅ Seção 2: Efetivo de Pessoal (SLIDER E CAMPOS MOVIDOS PARA FORA DO FORMULÁRIO)
     st.subheader("Efetivo de Pessoal")
-    max_colabs = len(colaboradores_lista) if colaboradores_lista else 20
-    qtd_colaboradores = st.slider(
+    max_colabs_slider = len(colaboradores_lista) if colaboradores_lista else 20
+
+    # Este slider está FORA do formulário principal.
+    # Ele atualiza o session_state e re-executa o script,
+    # permitindo que os campos de colaborador sejam renderizados dinamicamente.
+    qtd_colaboradores_input = st.slider(
         "Quantos colaboradores hoje?",
         min_value=0,
-        max_value=max_colabs,
-        value=st.session_state.num_colabs,
-        key="slider_colabs"
+        max_value=max_colabs_slider,
+        value=st.session_state.num_colabs_slider, # Usa o valor persistido
+        step=1,
+        key="slider_colabs_dynamic", # Chave diferente para evitar conflito
+        on_change=lambda: st.session_state.update(num_colabs_slider=st.session_state.slider_colabs_dynamic)
+        # on_change para atualizar o session_state imediatamente ao mover o slider
     )
-    st.session_state.num_colabs = qtd_colaboradores
 
-    # Formulário principal
-    with st.form(key="relatorio_form", clear_on_submit=False):
-        # Seção 1: Dados Gerais
-        st.subheader("Dados Gerais da Obra")
-        obra = st.selectbox("Obra", obras_lista, key="obra_select")
-        local = st.text_input("Local", key="local_input")
-        data = st.date_input("Data", datetime.today(), key="data_input")
-        contrato = st.selectbox("Contrato", contratos_lista, key="contrato_select")
-        clima = st.selectbox("Condições do dia", 
-                           ["Bom","Chuva","Garoa","Impraticável","Feriado","Guarda"],
-                           key="clima_select")
-        maquinas = st.text_area("Máquinas e equipamentos utilizados", key="maquinas_text")
-        servicos = st.text_area("Serviços executados no dia", key="servicos_text")
+    efetivo_lista = []
+    # Agora, os campos de colaboradores são renderizados com base no valor atual do slider
+    for i in range(qtd_colaboradores_input):
+        with st.expander(f"Colaborador {i+1}", expanded=True):
+            nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_dynamic_{i}")
+            funcao = ""
+            if nome and not colab_df.empty and nome in colab_df["Nome"].values:
+                funcao = colab_df.loc[colab_df["Nome"] == nome, "Função"].values[0]
+            funcao = st.text_input("Função", value=funcao, key=f"colab_funcao_dynamic_{i}")
+            col1, col2 = st.columns(2)
+            with col1:
+                entrada = st.time_input("Entrada", value=datetime.strptime("08:00", "%H:%M").time(), key=f"colab_entrada_dynamic_{i}")
+            with col2:
+                saida = st.time_input("Saída", value=datetime.strptime("17:00", "%H:%M").time(), key=f"colab_saida_dynamic_{i}")
+            efetivo_lista.append({"Nome": nome, "Função": funcao, "Entrada": entrada.strftime("%H:%M"), "Saída": saida.strftime("%H:%M")})
 
-        st.markdown("---")
+    st.markdown("---") # Linha separadora
 
-        # Seção 2: Efetivo de Pessoal
-        efetivo_lista = []
-        for i in range(st.session_state.num_colabs):
-            with st.expander(f"Colaborador {i+1}", expanded=True):
-                nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
-                funcao = ""
-                if nome and not colab_df.empty and nome in colab_df["Nome"].values:
-                    funcao = colab_df.loc[colab_df["Nome"] == nome, "Função"].values[0]
-                funcao = st.text_input("Função", value=funcao, key=f"colab_funcao_{i}")
-                col1, col2 = st.columns(2)
-                with col1:
-                    entrada = st.time_input("Entrada", 
-                                          value=datetime.strptime("08:00", "%H:%M").time(),
-                                          key=f"colab_entrada_{i}")
-                with col2:
-                    saida = st.time_input("Saída", 
-                                        value=datetime.strptime("17:00", "%H:%M").time(),
-                                        key=f"colab_saida_{i}")
-                efetivo_lista.append({
-                    "Nome": nome,
-                    "Função": funcao,
-                    "Entrada": entrada.strftime("%H:%M"),
-                    "Saída": saida.strftime("%H:%M")
-                })
-
-        st.markdown("---")
-
-        # Seção 3: Informações Adicionais
+    # ✅ FORMULÁRIO PRINCIPAL DE SUBMISSÃO (AGORA APENAS INFORMAÇÕES ADICIONAIS E BOTÃO)
+    with st.form(key="relatorio_final_submit_form", clear_on_submit=False): # Chave diferente
+        # Seção 3: Informações Adicionais (Pode continuar dentro do form)
         st.subheader("Informações Adicionais")
-        ocorrencias = st.text_area("Ocorrências", key="ocorrencias_text")
-        nome_empresa = st.text_input("Responsável pela empresa", key="responsavel_input")
-        nome_fiscal = st.text_input("Nome da fiscalização", key="fiscalizacao_input")
-        fotos = st.file_uploader("Fotos do serviço", 
-                               accept_multiple_files=True, 
-                               type=["png","jpg","jpeg"],
-                               key="fotos_uploader")
+        ocorrencias = st.text_area("Ocorrências", key="ocorrencias_text_form") # Chave diferente
+        nome_empresa = st.text_input("Responsável pela empresa", key="responsavel_input_form") # Chave diferente
+        nome_fiscal = st.text_input("Nome da fiscalização", key="fiscalizacao_input_form") # Chave diferente
+        fotos = st.file_uploader("Fotos do serviço",
+                                accept_multiple_files=True,
+                                type=["png", "jpg", "jpeg"],
+                                key="fotos_uploader_form") # Chave diferente
 
         # Botão de submit (DENTRO do form)
-        submitted = st.form_submit_button("💾 Salvar e Gerar Relatório")
+        submitted = st.form_submit_button("✅ Salvar e Gerar Relatório", key="submit_button_main") # Chave diferente
 
-    # Lógica de processamento após submissão (FORA do form)
+    # Lógica de processamento após submissão (CORRETAMENTE FORA do form)
     if submitted:
-        temp_dir_obj_for_cleanup = None
-        fotos_processed_paths = []
-        
+        temp_image_paths = [] # Renomeado para seguir o meu código anterior
+        temp_dir_obj_for_cleanup = None # Para garantir que está inicializado
+
         try:
-            # Validações básicas
+            # Validações dos campos que estavam fora do form mas são cruciais
             if not obra or obra == "":
                 st.error("Por favor, selecione a 'Obra'.")
-                st.stop()
+                return # Use return ao invés de st.stop() para não travar a UI
             if not contrato or contrato == "":
                 st.error("Por favor, selecione o 'Contrato'.")
-                st.stop()
+                return
             if not nome_empresa:
                 st.error("Por favor, preencha o campo 'Responsável pela empresa'.")
-                st.stop()
-
-            # Prepara registro
-            registro = {
+                return
+            
+            # Coleta de dados do formulário (incluindo os que foram definidos fora do form principal)
+            # Use 'report_data' como no meu exemplo anterior
+            report_data = {
                 "Obra": obra,
                 "Local": local,
                 "Data": data.strftime("%d/%m/%Y"),
                 "Contrato": contrato,
                 "Clima": clima,
-                "Máquinas": maquinas,
-                "Serviços": servicos,
-                "Efetivo": json.dumps(efetivo_lista, ensure_ascii=False),
-                "Ocorrências": ocorrencias,
-                "Responsável Empresa": nome_empresa,
-                "Fiscalização": nome_fiscal
+                "Maquinas": maquinas,
+                "Servicos": servicos,
+                "Ocorrencias": ocorrencias, # Este está dentro do form
+                "Nome da Empresa": nome_empresa, # Este está dentro do form
+                "Nome da Fiscalizacao": nome_fiscal, # Este está dentro do form
             }
 
-            # Processa fotos
-            with st.spinner("Processando fotos..."):
-                fotos_processed_paths = processar_fotos(fotos, obra, data) if fotos else []
-                if fotos_processed_paths:
-                    temp_dir_obj_for_cleanup = Path(fotos_processed_paths[0]).parent
-                elif fotos:
-                    st.warning("Nenhuma foto foi processada corretamente. O PDF pode não conter imagens.")
+            # Processa e salva fotos temporariamente
+            if fotos:
+                # Aqui você precisa da sua função `processar_fotos` ou incorporar a lógica diretamente.
+                # No meu código completo anterior, eu já tinha uma lógica inline.
+                # Se `processar_fotos` não existe ou não é a mesma, use o bloco que eu forneci.
+                # Vou incluir o bloco do meu código anterior para clareza:
+                temp_dir_obj = tempfile.TemporaryDirectory()
+                temp_dir_path = Path(temp_dir_obj.name)
+                temp_dir_obj_for_cleanup = temp_dir_obj
+
+                with st.spinner("Processando fotos..."):
+                    for uploaded_file in fotos:
+                        sanitized_name = "".join(c for c in uploaded_file.name if c.isalnum() or c in ('.', '_', '-')).strip()
+                        if not sanitized_name:
+                            sanitized_name = f"foto_temp_{datetime.now().strftime('%Y%m%d%H%M%S%f')}.jpg"
+                        
+                        temp_img_path = temp_dir_path / sanitized_name
+                        try:
+                            with open(temp_img_path, "wb") as f:
+                                f.write(uploaded_file.read())
+                            temp_image_paths.append(str(temp_img_path))
+                        except Exception as e:
+                            st.warning(f"Não foi possível salvar a foto {uploaded_file.name} temporariamente: {e}")
+                    if not temp_image_paths and fotos:
+                        st.warning("⚠️ Nenhuma foto foi salva temporariamente. O PDF pode não conter imagens.")
             
-            # Gera PDF
+            # Geração do PDF
+            pdf_file_name = f"RDV_{obra.replace(' ', '_')}_{data.strftime('%Y%m%d')}.pdf"
+            pdf_buffer = io.BytesIO()
+
             with st.spinner("Gerando PDF..."):
-                nome_pdf = f"Diario_{obra.replace(' ', '_')}_{data.strftime('%Y-%m-%d')}.pdf"
-                pdf_buffer = gerar_pdf(registro, fotos_processed_paths)
+                # Use a função generate_pdf que eu forneci, ela usa 'report_data' e 'efetivo_lista'
+                generate_pdf(report_data, efetivo_lista, pdf_buffer, temp_image_paths, get_drive_service(), DRIVE_FOLDER_ID)
                 
-                if pdf_buffer is None:
-                    st.error("Falha ao gerar o PDF. Verifique os logs.")
-                    st.stop()
-            
-            # Download
-            st.download_button(
-                label="📥 Baixar Relatório PDF",
-                data=pdf_buffer,
-                file_name=nome_pdf,
-                mime="application/pdf",
-                type="primary"
-            )
-            
-            # Upload para Google Drive
-            with st.spinner("Enviando para Google Drive..."):
+                if pdf_buffer is None or pdf_buffer.getvalue() == b'':
+                    st.error("Falha crítica ao gerar o PDF. O buffer está vazio. Por favor, tente novamente ou verifique os logs para detalhes.")
+                    return
+                
+                st.download_button(
+                    label="📥 Baixar Relatório PDF",
+                    data=pdf_buffer.getvalue(), # getvalue() para o buffer
+                    file_name=pdf_file_name,
+                    mime="application/pdf",
+                    type="primary"
+                )
+
+            # Upload do PDF para o Google Drive
+            drive_id = None
+            with st.spinner("Enviando relatório para o Google Drive..."):
                 pdf_buffer.seek(0)
-                drive_id = upload_para_drive_seguro(pdf_buffer, nome_pdf)
+                service = get_drive_service()
+                today_folder_name = datetime.now().strftime("%Y-%m-%d")
+                daily_folder_id = create_drive_folder_if_not_exists(service, DRIVE_FOLDER_ID, today_folder_name)
                 
+                drive_id = upload_file_to_drive(service, daily_folder_id, pdf_file_name, pdf_buffer.getvalue(), "application/pdf")
+
                 if drive_id:
-                    st.success(f"PDF salvo no Google Drive! ID: {drive_id}")
-                    st.markdown(f"[Abrir no Drive](https://drive.google.com/file/d/{drive_id}/view)")
-                    
-                    # Envia e-mail
-                    with st.spinner("Enviando e-mail..."):
-                        assunto = f"Diário de Obra - {obra} ({data.strftime('%d/%m/%Y')})"
-                        corpo = f"""
-                        <p>Relatório diário gerado:</p>
+                    st.success(f"PDF salvo com sucesso no Google Drive! ID: {drive_id}")
+                    st.markdown(f"**[Clique aqui para abrir no Google Drive](https://drive.google.com/file/d/{drive_id}/view)**")
+
+                    # Enviar e-mail de notificação
+                    with st.spinner("Enviando e-mail de notificação..."):
+                        assunto_email = f"📋 Novo Diário de Obra - {obra} ({data.strftime('%d/%m/%Y')})"
+                        corpo_email_html = f"""
+                        <p>Olá, equipe RDV!</p>
+                        <p>O diário de obra foi preenchido com sucesso:</p>
                         <ul>
-                            <li>Obra: {obra}</li>
-                            <li>Data: {data.strftime('%d/%m/%Y')}</li>
-                            <li>Responsável: {nome_empresa}</li>
+                            <li><strong>Obra:</strong> {obra}</li>
+                            <li><strong>Local:</strong> {local}</li>
+                            <li><strong>Data:</strong> {data.strftime('%d/%m/%Y')}</li>
+                            <li><strong>Responsável:</strong> {nome_empresa}</li>
                         </ul>
+                        <p>Você pode acessar o relatório diretamente no Google Drive através deste link: <a href="https://drive.google.com/file/d/{drive_id}/view">Abrir no Google Drive</a></p>
+                        <p>Atenciosamente,</p>
+                        <p>Equipe RDV Engenharia</p>
                         """
-                        if enviar_email(
-                            ["comercial@rdvengenharia.com.br", "administrativo@rdvengenharia.com.br"],
-                            assunto, corpo, drive_id
-                        ):
-                            st.success("E-mail enviado!")
+                        destinatarios_email = [
+                            "comercial@rdvengenharia.com.br",
+                            "administrativo@rdvengenharia.com.br"
+                        ]
+                        
+                        # Use a função send_email que eu forneci
+                        if send_email(assunto_email, corpo_email_html, destinatarios_email, attachments=None):
+                            st.success("📨 E-mail de notificação enviado com sucesso!")
                         else:
-                            st.warning("PDF salvo, mas falha no envio do e-mail.")
+                            st.warning("""
+                            ⚠️ O PDF foi salvo no Google Drive, mas o e-mail de notificação não foi enviado.
+                            Por favor, verifique os detalhes do erro acima ou nos logs para depuração.
+                            **Possíveis soluções:**
+                            1. Verifique sua conexão com a internet.
+                            2. Confira as configurações de e-mail (usuário e senha) no seu arquivo `.streamlit/secrets.toml`.
+                            3. Certifique-se de estar usando uma **Senha de Aplicativo (App Password)** do Gmail para a senha, se a Verificação em Duas Etapas estiver ativada na sua conta de e-mail.
+                            """)
                 else:
-                    st.error("Falha no upload para o Google Drive.")
-        
+                    st.error("O upload para o Google Drive falhou. O e-mail de notificação não foi enviado.")
+
         except Exception as e:
-            st.error(f"Erro inesperado: {str(e)}")
-        
+            st.error(f"Ocorreu um erro inesperado durante o processamento do relatório: {str(e)}. Por favor, tente novamente.")
         finally:
-            # Limpeza de arquivos temporários
-            try:
-                if temp_dir_obj_for_cleanup and temp_dir_obj_for_cleanup.exists():
-                    shutil.rmtree(temp_dir_obj_for_cleanup)
-            except Exception as e:
-                st.warning(f"Erro ao limpar arquivos temporários: {str(e)}")
-            
-            try:
-                if temp_icon_path_for_cleanup and os.path.exists(temp_icon_path_for_cleanup):
-                    st.info(f"Limpando arquivo temporário do ícone: {temp_icon_path_for_cleanup}")
-                    os.remove(temp_icon_path_for_cleanup)
-            except Exception as e:
-                st.warning(f"Erro ao tentar limpar arquivo temporário do ícone: {str(e)}. Por favor, verifique os logs.")
+            if temp_dir_obj_for_cleanup:
+                try:
+                    temp_dir_obj_for_cleanup.cleanup() # Limpa o diretório temporário das fotos
+                except Exception as e:
+                    st.warning(f"Erro ao tentar limpar diretório temporário de fotos: {str(e)}. Por favor, verifique os logs.")
+
+            # Você tinha uma variável `temp_icon_path_for_cleanup` que não está no meu código.
+            # Certifique-se de que a limpeza do ícone está sendo tratada no `main()` como no meu código.
+            # A função `clear_icon_temp_file` é chamada no `main`.
+            # Remova este bloco duplicado se a limpeza do ícone já estiver no main.
+            # try:
+            #     if temp_icon_path_for_cleanup and os.path.exists(temp_icon_path_for_cleanup):
+            #         st.info(f"Limpando arquivo temporário do ícone: {temp_icon_path_for_cleanup}")
+            #         os.remove(temp_icon_path_for_cleanup)
+            # except Exception as e:
+            #     st.warning(f"Erro ao tentar limpar arquivo temporário do ícone: {str(e)}. Por favor, verifique os logs.")
 
 
 def render_user_management_page():
