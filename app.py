@@ -721,49 +721,82 @@ def render_diario_obra_page():
     st.title("Relatório Diário de Obra - RDV Engenharia")
 
 def render_diario_obra_page():
-    # 1. Inicialização do estado (FORA do form)
-    if 'num_colabs' not in st.session_state:
-        st.session_state.num_colabs = 2  # Valor padrão
+    import os
+    import pandas as pd
+    from datetime import datetime
+    import streamlit as st
 
-    # [Mantenha todo o código de carregamento de dados... obras_df, contratos_df, etc.]
+    @st.cache_data(ttl=3600)
+    def carregar_arquivo_csv(nome_arquivo):
+        if not os.path.exists(nome_arquivo):
+            st.error(f"Erro: Arquivo de dados '{nome_arquivo}' não encontrado.")
+            return pd.DataFrame()
+        try:
+            return pd.read_csv(nome_arquivo)
+        except Exception as e:
+            st.error(f"Erro ao ler o arquivo '{nome_arquivo}': {e}")
+            return pd.DataFrame()
 
-    st.title("Relatório Diário de Obra - RDV Engenharia")
+    # Carrega as listas de obras, contratos e colaboradores
+    obras_df = carregar_arquivo_csv("obras.csv")
+    contratos_df = carregar_arquivo_csv("contratos.csv")
 
-    # 2. FORMULÁRIO PRINCIPAL
-    with st.form(key="relatorio_form", clear_on_submit=False):
-        # Seção 1: Dados Gerais
+    colab_df = pd.DataFrame()
+    colaboradores_lista = []
+    try:
+        colab_df = pd.read_csv("colaboradores.csv")
+        if {"Nome", "Função"}.issubset(colab_df.columns):
+            colaboradores_lista = colab_df["Nome"].tolist()
+        else:
+            st.error("'colaboradores.csv' deve ter colunas 'Nome' e 'Função'.")
+    except FileNotFoundError:
+        st.error("Arquivo 'colaboradores.csv' não encontrado.")
+    except Exception as e:
+        st.error(f"Erro ao carregar 'colaboradores.csv': {e}")
+
+    if obras_df.empty or contratos_df.empty:
+        return
+
+    obras_lista = [""] + obras_df["Nome"].tolist()
+    contratos_lista = [""] + contratos_df["Nome"].tolist()
+
+    # ---------------- FORMULÁRIO 1: Dados Gerais ----------------
+    with st.form("form_dados_gerais"):
+        st.title("Relatório Diário de Obra - RDV Engenharia")
         st.subheader("Dados Gerais da Obra")
         obra = st.selectbox("Obra", obras_lista, key="obra_select")
         local = st.text_input("Local", key="local_input")
         data = st.date_input("Data", datetime.today(), key="data_input")
         contrato = st.selectbox("Contrato", contratos_lista, key="contrato_select")
-        clima = st.selectbox("Condições do dia", 
-                           ["Bom","Chuva","Garoa","Impraticável","Feriado","Guarda"],
-                           key="clima_select")
+        clima = st.selectbox("Condições do dia",
+                             ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado", "Guarda"],
+                             key="clima_select")
         maquinas = st.text_area("Máquinas e equipamentos utilizados", key="maquinas_text")
         servicos = st.text_area("Serviços executados no dia", key="servicos_text")
+        submitted_gerais = st.form_submit_button("Salvar Dados Gerais")
 
-        st.markdown("---")
+    # ---------------- Separador visual ----------------
+    st.markdown("---")
 
-        # Seção 2: Controle de Colaboradores (POSIÇÃO CORRIGIDA)
+    # ---------------- FORMULÁRIO 2: Efetivo de Pessoal ----------------
+    if 'num_colabs_input' not in st.session_state:
+        st.session_state.num_colabs_input = 2
+
+    with st.form("form_efetivo_pessoal"):
         st.subheader("Efetivo de Pessoal")
-        
-        # Slider DENTRO do form mas com callback para atualização dinâmica
-        def atualizar_colabs():
-            st.session_state.num_colabs = st.session_state.slider_colabs
-            
-        qtd = st.slider(
+        max_colabs = len(colaboradores_lista) if colaboradores_lista else 8
+        qtd_colaboradores = st.number_input(
             "Quantos colaboradores hoje?",
             min_value=0,
-            max_value=len(colaboradores_lista) if colaboradores_lista else 20,
-            value=st.session_state.num_colabs,
-            key="slider_colabs",
-            on_change=atualizar_colabs  # Atualiza sem precisar submeter
+            max_value=max_colabs,
+            value=st.session_state.get("num_colabs_input", 2),
+            step=1,
+            key="num_colabs_input"
         )
+        st.session_state.num_colabs_input = int(qtd_colaboradores)
 
-        # Campos dos colaboradores (renderizados dinamicamente)
         efetivo_lista = []
-        for i in range(st.session_state.num_colabs):
+        for i in range(st.session_state.num_colabs_input):
             with st.expander(f"Colaborador {i+1}", expanded=True):
                 nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
                 funcao = ""
@@ -772,35 +805,27 @@ def render_diario_obra_page():
                 funcao = st.text_input("Função", value=funcao, key=f"colab_funcao_{i}")
                 col1, col2 = st.columns(2)
                 with col1:
-                    entrada = st.time_input("Entrada", 
-                                          value=datetime.strptime("08:00", "%H:%M").time(),
-                                          key=f"colab_entrada_{i}")
+                    entrada = st.time_input("Entrada",
+                                           value=datetime.strptime("08:00", "%H:%M").time(),
+                                           key=f"colab_entrada_{i}")
                 with col2:
-                    saida = st.time_input("Saída", 
-                                        value=datetime.strptime("17:00", "%H:%M").time(),
-                                        key=f"colab_saida_{i}")
+                    saida = st.time_input("Saída",
+                                         value=datetime.strptime("17:00", "%H:%M").time(),
+                                         key=f"colab_saida_{i}")
                 efetivo_lista.append({
                     "Nome": nome,
                     "Função": funcao,
                     "Entrada": entrada.strftime("%H:%M"),
                     "Saída": saida.strftime("%H:%M")
                 })
-
-        st.markdown("---")
-
-        # Seção 3: Informações Adicionais
-        st.subheader("Informações Adicionais")
         ocorrencias = st.text_area("Ocorrências", key="ocorrencias_text")
         nome_empresa = st.text_input("Responsável pela empresa", key="responsavel_input")
         nome_fiscal = st.text_input("Nome da fiscalização", key="fiscalizacao_input")
-        fotos = st.file_uploader("Fotos do serviço", 
-                               accept_multiple_files=True, 
-                               type=["png","jpg","jpeg"],
-                               key="fotos_uploader")
-
-        # Botão de submit (MANTIDO como último elemento)
-        submitted = st.form_submit_button("💾 Salvar e Gerar Relatório")
-
+        fotos = st.file_uploader("Fotos do serviço",
+                                 accept_multiple_files=True,
+                                 type=["png", "jpg", "jpeg"],
+                                 key="fotos_uploader")
+        submitted_efetivo = st.form_submit_button("Salvar Efetivo de Pessoal e Gerar Relatório")
     # 3. Lógica de processamento (FORA do form)
     if submitted:
         temp_dir_obj_for_cleanup = None
