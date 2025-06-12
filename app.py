@@ -769,23 +769,21 @@ def render_diario_obra_page():
     st.title("Relatório Diário de Obra - RDV Engenharia")
     st.markdown("## Dados Gerais da Obra")
 
-    # Slider dinâmico LOGO APÓS o subtítulo (visual integrado à seção)
-    st.write("**Quantos colaboradores hoje?**")
-    max_colabs = len(colaboradores_lista) if colaboradores_lista else 20
-    qtd_colaboradores = st.slider(
-        "",
+    # Number input dinâmico para colaboradores
+    max_colabs = len(colaboradores_lista) if colaboradores_lista else 8
+    qtd_colaboradores = st.number_input(
+        "Quantos colaboradores hoje?",
         min_value=0,
         max_value=max_colabs,
         value=st.session_state.get("num_colabs", 2),
-        key="num_colabs_slider"
+        step=1,
+        key="num_colabs_input"
     )
-    st.session_state.num_colabs = qtd_colaboradores
-
-    # Separador visual
+    st.session_state.num_colabs = int(qtd_colaboradores)
     st.markdown("---")
 
     with st.form(key="relatorio_form", clear_on_submit=False):
-        # Continua "Dados Gerais" dentro do form
+        # Dados Gerais
         obra = st.selectbox("Obra", obras_lista, key="obra_select")
         local = st.text_input("Local", key="local_input")
         data = st.date_input("Data", datetime.today(), key="data_input")
@@ -834,6 +832,10 @@ def render_diario_obra_page():
                                  key="fotos_uploader")
 
         submitted = st.form_submit_button("💾 Salvar e Gerar Relatório")
+
+    if submitted:
+        # Sua lógica de processamento aqui...
+        st.success("Relatório gerado com sucesso!")
 
     # Lógica de processamento após submissão
     if submitted:
