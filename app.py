@@ -26,7 +26,7 @@ import hashlib
 import base64
 
 # ========== CONSTANTES ==========
-DRIVE_FOLDER_ID = "1BUgZRcBrKksC3eUytoJ5mv_nhMRcAv1d"
+DRIVE_FOLDER_ID = "1BUgZRcBrKksC3eUytoJ5mv_nhMRdAv1d"
 LOGO_LOGIN_PATH = "LOGO RDV AZUL.jpeg"
 LOGO_PDF_PATH = "LOGO_RDV_AZUL-sem fundo.png"
 LOGO_ICON_PATH = "LOGO_RDV_AZUL-sem fundo.png"
