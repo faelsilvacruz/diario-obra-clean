@@ -646,7 +646,7 @@ if st.session_state.logged_in:
                 with st.spinner("Enviando para Google Drive..."):
                     try:
                         # Recria o serviço sempre que for usar (seguro para múltiplos uploads)
-                        service = build("drive", "v3", credentials=creds, static_discovery_docs=False)
+                        service = build("drive", "v3", credentials=creds, static_discovery=False)
                         pdf_buffer.seek(0)
                         media = MediaIoBaseUpload(pdf_buffer, mimetype='application/pdf', resumable=True)
                         file_metadata = {'name': nome_pdf, 'parents': [DRIVE_FOLDER_ID]}
