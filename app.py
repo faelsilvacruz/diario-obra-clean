@@ -654,21 +654,27 @@ if not st.session_state.logged_in:
         password_input = st.text_input("Senha", type="password", key="login_password")
         submitted = st.form_submit_button("Entrar")
 
-        if st.button()
-            if username_input and password_input:
-                hashed_password = make_hashes(password_input)
-                authenticated, role = login_user(username_input, hashed_password)
-                if authenticated:
-                    st.session_state["logged_in"] = True
-                    st.session_state["username"] = username_input
-                    st.session_state["role"] = role
-                    st.rerun()
-                else:
-                    st.error("Credenciais inválidas. Verifique seu usuário e senha.")
+    with st.form("login_form"):
+        username_input = st.text_input("Usuário", placeholder="Digite seu nome de usuário", key="login_username")
+        password_input = st.text_input("Senha", type="password", key="login_password")
+        submitted = st.form_submit_button("Entrar")  # Botão de submit do formulário
+    
+    if submitted:
+        if username_input and password_input:
+            hashed_password = make_hashes(password_input)
+            authenticated, role = login_user(username_input, hashed_password)
+            if authenticated:
+                st.session_state["logged_in"] = True
+                st.session_state["username"] = username_input
+                st.session_state["role"] = role
+                st.rerun()
             else:
-                st.warning("Por favor, preencha todos os campos.")
-
+                st.error("Credenciais inválidas. Verifique seu usuário e senha.")
+        else:
+            st.warning("Por favor, preencha todos os campos.")
+    
     st.stop()
+
 
 # ✅ LÓGICA DO APP APÓS LOGIN
 if st.session_state.logged_in:
