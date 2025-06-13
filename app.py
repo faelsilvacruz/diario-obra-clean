@@ -725,7 +725,6 @@ def render_diario_obra_page():
     import pandas as pd
     from datetime import datetime
     import streamlit as st
-    import unicodedata
 
     @st.cache_data(ttl=3600)
     def carregar_arquivo_csv(nome_arquivo):
@@ -737,15 +736,6 @@ def render_diario_obra_page():
         except Exception as e:
             st.error(f"Erro ao ler o arquivo '{nome_arquivo}': {e}")
             return pd.DataFrame()
-
-    def normalizar(texto):
-        if not isinstance(texto, str):
-            texto = str(texto)
-        # Remove acentos, espaços, diferenças de maiúscula/minúscula e caracteres invisíveis
-        return ''.join(
-            c for c in unicodedata.normalize('NFKD', texto)
-            if not unicodedata.combining(c)
-        ).strip().lower()
 
     # --- Carrega os dados ---
     obras_df = carregar_arquivo_csv("obras.csv")
@@ -793,23 +783,26 @@ def render_diario_obra_page():
         step=1
     )
 
+    # DEBUG ANTES DO FORM
+    st.write("Nomes do selectbox:", colaboradores_lista)
+    st.write("Nomes normalizados do DataFrame:", list(colab_df["Nome"].apply(lambda x: x.strip().lower())))
+    st.write("Funções do DataFrame:", list(colab_df["Função"]))
+
     with st.form("form_diario_obra"):
         efetivo_lista = []
-        # Normaliza todos os nomes do DataFrame
-        colab_df["Nome_Normalizado"] = colab_df["Nome"].apply(normalizar)
-        # (DEBUG: Mostra lista dos nomes normalizados do DataFrame)
-        # st.write("Nomes normalizados do CSV:", list(colab_df["Nome_Normalizado"]))
+        # Adiciona a coluna normalizada
+        colab_df["Nome_Normalizado"] = colab_df["Nome"].apply(lambda x: x.strip().lower())
         for i in range(int(qtd_colaboradores)):
             with st.expander(f"Colaborador {i+1}", expanded=True):
                 nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
-                nome_normalizado = normalizar(nome)
+                nome_normalizado = nome.strip().lower() if nome else ""
+                st.write(f"DEBUG: Selecionado '{nome}', Normalizado '{nome_normalizado}'")
                 funcao = ""
                 if nome_normalizado and not colab_df.empty:
                     match = colab_df[colab_df["Nome_Normalizado"] == nome_normalizado]
+                    st.write(f"DEBUG: Match encontrado:", match)
                     if not match.empty:
                         funcao = match.iloc[0]["Função"]
-                # (DEBUG: Mostra o nome selecionado normalizado)
-                # st.write(f"Selecionado: {nome} | Normalizado: '{nome_normalizado}' | Função: {funcao}")
                 if funcao:
                     st.markdown(f"**Função:** {funcao}")
                 else:
@@ -842,6 +835,7 @@ def render_diario_obra_page():
 
     if submitted:
         st.success("Relatório salvo! (Aqui entra sua lógica de geração do relatório, PDF, etc.)")
+
 
 
     # 3. Lógica de processamento (FORA do form)
