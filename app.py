@@ -366,7 +366,7 @@ def processar_fotos(fotos_upload, obra_nome, data_relatorio):
 def upload_para_drive_seguro(pdf_buffer, nome_arquivo):
     try:
         pdf_buffer.seek(0)
-        service = build("drive", "v3", credentials=creds, static_discovery_docs=False)
+        service = build("drive", "v3", credentials=creds, static_discovery=False)
         media = MediaIoBaseUpload(pdf_buffer, mimetype='application/pdf', resumable=True)
         file_metadata = {'name': nome_arquivo, 'parents': [DRIVE_FOLDER_ID]}
         file = service.files().create(
