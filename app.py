@@ -786,21 +786,27 @@ def render_diario_obra_page():
     # Normaliza nomes para comparação exata
     colab_df["Nome_Normalizado"] = colab_df["Nome"].apply(lambda x: x.strip().lower())
 
+    # DEBUG ANTES DO FOR
+    st.write("Colaboradores_lista:", colaboradores_lista)
+    st.write("DataFrame nomes normalizados:", list(colab_df["Nome_Normalizado"]))
+
     with st.form("form_diario_obra"):
         efetivo_lista = []
         for i in range(int(qtd_colaboradores)):
             with st.expander(f"Colaborador {i+1}", expanded=True):
                 nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
                 nome_normalizado = nome.strip().lower() if nome else ""
+                st.write(f"Nome selecionado: '{nome}', normalizado: '{nome_normalizado}'")
                 funcao = ""
                 if nome_normalizado and not colab_df.empty:
                     match = colab_df[colab_df["Nome_Normalizado"] == nome_normalizado]
+                    st.write("Match encontrado:", match)
                     if not match.empty:
                         funcao = match.iloc[0]["Função"]
 
                 # ---- Exibição da função igual ao input do Streamlit ----
                 st.markdown("Função:")
-                cor_fundo = "#262730"    # ou #232323 (ajuste conforme seu tema)
+                cor_fundo = "#262730"
                 cor_borda = "#363636"
                 cor_texto = "#fff"
                 cor_placeholder = "#888"
