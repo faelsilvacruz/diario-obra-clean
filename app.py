@@ -740,12 +740,15 @@ def render_diario_obra_page():
     # --- Carrega os dados ---
     obras_df = carregar_arquivo_csv("obras.csv")
     contratos_df = carregar_arquivo_csv("contratos.csv")
+    
+    # Carrega colaboradores com tratamento mais robusto
     colab_df = pd.DataFrame()
     colaboradores_lista = []
     try:
         colab_df = pd.read_csv("colaboradores.csv")
-        if {"Nome", "Função"}.issubset(colab_df.columns):
+        if not colab_df.empty and {"Nome", "Função"}.issubset(colab_df.columns):
             colab_df["Nome"] = colab_df["Nome"].astype(str).str.strip()
+            colab_df["Nome_Normalizado"] = colab_df["Nome"].str.lower().str.strip()
             colaboradores_lista = colab_df["Nome"].tolist()
         else:
             st.error("'colaboradores.csv' deve ter colunas 'Nome' e 'Função'.")
@@ -783,34 +786,37 @@ def render_diario_obra_page():
         step=1
     )
 
-    # Normaliza nomes para comparação exata
-    colab_df["Nome_Normalizado"] = colab_df["Nome"].apply(lambda x: x.strip().lower())
-
-    # --- DEBUG FORA DO FORM ---
-    st.write("Colaboradores_lista:", colaboradores_lista)
-    st.write("DataFrame nomes normalizados:", list(colab_df["Nome_Normalizado"]))
-    for i in range(int(qtd_colaboradores)):
-        nome = st.selectbox(f"Nome (debug) colab {i+1}", [""] + colaboradores_lista, key=f"debug_colab_nome_{i}")
-        nome_normalizado = nome.strip().lower() if nome else ""
-        st.write(f"Nome selecionado: '{nome}', normalizado: '{nome_normalizado}'")
-        if nome_normalizado and not colab_df.empty:
-            match = colab_df[colab_df["Nome_Normalizado"] == nome_normalizado]
-            st.write("Match encontrado:", match)
-
     # --- FORMULÁRIO PRINCIPAL ---
     with st.form("form_diario_obra"):
         efetivo_lista = []
+        
+        # Debug dentro do formulário
+        if st.toggle("Mostrar debug", False):
+            st.write("Colaboradores_lista:", colaboradores_lista)
+            if not colab_df.empty:
+                st.write("DataFrame nomes normalizados:", list(colab_df["Nome_Normalizado"]))
+        
         for i in range(int(qtd_colaboradores)):
             with st.expander(f"Colaborador {i+1}", expanded=True):
                 nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
-                nome_normalizado = nome.strip().lower() if nome else ""
+                
+                # Debug para este colaborador
+                if st.session_state.get("Mostrar debug", False):
+                    st.write(f"Nome selecionado: '{nome}'")
+                    if nome and not colab_df.empty:
+                        nome_normalizado = nome.strip().lower()
+                        match = colab_df[colab_df["Nome_Normalizado"] == nome_normalizado]
+                        st.write("Match encontrado:", match)
+                
+                # Busca a função
                 funcao = ""
-                if nome_normalizado and not colab_df.empty:
+                if nome and not colab_df.empty:
+                    nome_normalizado = nome.strip().lower()
                     match = colab_df[colab_df["Nome_Normalizado"] == nome_normalizado]
                     if not match.empty:
-                        funcao = match.iloc[0]["Função"]
+                        funcao = match.iloc[0]["Função"].strip()
 
-                # ---- Exibição da função igual ao input do Streamlit ----
+                # Exibição da função
                 st.markdown("Função:")
                 cor_fundo = "#262730"
                 cor_borda = "#363636"
@@ -842,7 +848,6 @@ def render_diario_obra_page():
                     """,
                     unsafe_allow_html=True
                 )
-                # --------------------------------------------------------
 
                 col1, col2 = st.columns(2)
                 with col1:
