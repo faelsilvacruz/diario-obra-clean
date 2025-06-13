@@ -725,6 +725,7 @@ def render_diario_obra_page():
     import pandas as pd
     from datetime import datetime
     import streamlit as st
+    import unicodedata
 
     @st.cache_data(ttl=3600)
     def carregar_arquivo_csv(nome_arquivo):
@@ -737,6 +738,15 @@ def render_diario_obra_page():
             st.error(f"Erro ao ler o arquivo '{nome_arquivo}': {e}")
             return pd.DataFrame()
 
+    def normalizar(texto):
+        if not isinstance(texto, str):
+            texto = str(texto)
+        # Remove acentos, espaços, diferenças de maiúscula/minúscula e caracteres invisíveis
+        return ''.join(
+            c for c in unicodedata.normalize('NFKD', texto)
+            if not unicodedata.combining(c)
+        ).strip().lower()
+
     # --- Carrega os dados ---
     obras_df = carregar_arquivo_csv("obras.csv")
     contratos_df = carregar_arquivo_csv("contratos.csv")
@@ -745,7 +755,7 @@ def render_diario_obra_page():
     try:
         colab_df = pd.read_csv("colaboradores.csv")
         if {"Nome", "Função"}.issubset(colab_df.columns):
-            colab_df["Nome"] = colab_df["Nome"].astype(str).str.strip() # Garante que não tenha espaços
+            colab_df["Nome"] = colab_df["Nome"].astype(str).str.strip()
             colaboradores_lista = colab_df["Nome"].tolist()
         else:
             st.error("'colaboradores.csv' deve ter colunas 'Nome' e 'Função'.")
@@ -785,17 +795,21 @@ def render_diario_obra_page():
 
     with st.form("form_diario_obra"):
         efetivo_lista = []
-        # Garante a coluna normalizada apenas uma vez (fora do for)
-        colab_df["Nome_Normalizado"] = colab_df["Nome"].astype(str).str.strip().str.lower()
+        # Normaliza todos os nomes do DataFrame
+        colab_df["Nome_Normalizado"] = colab_df["Nome"].apply(normalizar)
+        # (DEBUG: Mostra lista dos nomes normalizados do DataFrame)
+        # st.write("Nomes normalizados do CSV:", list(colab_df["Nome_Normalizado"]))
         for i in range(int(qtd_colaboradores)):
             with st.expander(f"Colaborador {i+1}", expanded=True):
                 nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
-                nome_normalizado = nome.strip().lower() if nome else ""
+                nome_normalizado = normalizar(nome)
                 funcao = ""
                 if nome_normalizado and not colab_df.empty:
                     match = colab_df[colab_df["Nome_Normalizado"] == nome_normalizado]
                     if not match.empty:
                         funcao = match.iloc[0]["Função"]
+                # (DEBUG: Mostra o nome selecionado normalizado)
+                # st.write(f"Selecionado: {nome} | Normalizado: '{nome_normalizado}' | Função: {funcao}")
                 if funcao:
                     st.markdown(f"**Função:** {funcao}")
                 else:
@@ -829,8 +843,6 @@ def render_diario_obra_page():
     if submitted:
         st.success("Relatório salvo! (Aqui entra sua lógica de geração do relatório, PDF, etc.)")
 
-        # Sua lógica para processar, gerar relatório, PDF, enviar e-mail, etc.
-        st.success("Relatório salvo! (Aqui entra sua lógica de geração do relatório, PDF, etc.)")
 
     # 3. Lógica de processamento (FORA do form)
     if submitted:
