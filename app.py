@@ -771,7 +771,6 @@ def render_diario_obra_page():
 
     st.markdown("---")
 
-    # --- Agora o número de colaboradores fica junto do bloco Efetivo ---
     st.subheader("Efetivo de Pessoal")
     max_colabs = len(colaboradores_lista) if colaboradores_lista else 8
     qtd_colaboradores = st.number_input(
@@ -782,34 +781,36 @@ def render_diario_obra_page():
         step=1
     )
 
-    # --- Agora sim, dentro do formulário só vai os campos variáveis ---
     with st.form("form_diario_obra"):
         efetivo_lista = []
         for i in range(int(qtd_colaboradores)):
             with st.expander(f"Colaborador {i+1}", expanded=True):
-    nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
-    funcao = ""
-    if nome and not colab_df.empty:
-        match = colab_df[colab_df["Nome"].str.strip().str.lower() == nome.strip().lower()]
-        if not match.empty:
-            funcao = match.iloc[0]["Função"]
-    # Exibe a função abaixo do selectbox
-    if funcao:
-        st.markdown(f"**Função:** {funcao}")
-    else:
-        st.markdown(f"<span style='color:#888'>Selecione o colaborador para exibir a função</span>", unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    with col1:
-        entrada = st.time_input("Entrada", value=datetime.strptime("08:00", "%H:%M").time(), key=f"colab_entrada_{i}")
-    with col2:
-        saida = st.time_input("Saída", value=datetime.strptime("17:00", "%H:%M").time(), key=f"colab_saida_{i}")
-    efetivo_lista.append({
-        "Nome": nome,
-        "Função": funcao,
-        "Entrada": entrada.strftime("%H:%M"),
-        "Saída": saida.strftime("%H:%M")
-    })
-
+                nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
+                # Busca e exibe a função do colaborador em tempo real
+                funcao = ""
+                if nome and not colab_df.empty:
+                    match = colab_df[colab_df["Nome"].str.strip().str.lower() == nome.strip().lower()]
+                    if not match.empty:
+                        funcao = match.iloc[0]["Função"]
+                if funcao:
+                    st.markdown(f"**Função:** {funcao}")
+                else:
+                    st.markdown(f"<span style='color:#888'>Selecione o colaborador para exibir a função</span>", unsafe_allow_html=True)
+                col1, col2 = st.columns(2)
+                with col1:
+                    entrada = st.time_input("Entrada",
+                                           value=datetime.strptime("08:00", "%H:%M").time(),
+                                           key=f"colab_entrada_{i}")
+                with col2:
+                    saida = st.time_input("Saída",
+                                         value=datetime.strptime("17:00", "%H:%M").time(),
+                                         key=f"colab_saida_{i}")
+                efetivo_lista.append({
+                    "Nome": nome,
+                    "Função": funcao,
+                    "Entrada": entrada.strftime("%H:%M"),
+                    "Saída": saida.strftime("%H:%M")
+                })
 
         st.markdown("---")
         st.subheader("Informações Adicionais")
@@ -823,6 +824,7 @@ def render_diario_obra_page():
 
     if submitted:
         st.success("Relatório salvo! (Aqui entra sua lógica de geração do relatório, PDF, etc.)")
+
 
         # Sua lógica para processar, gerar relatório, PDF, enviar e-mail, etc.
         st.success("Relatório salvo! (Aqui entra sua lógica de geração do relatório, PDF, etc.)")
