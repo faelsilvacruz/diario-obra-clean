@@ -226,47 +226,113 @@ def draw_footer(c, width, margem, current_y, registro):
     return margem
 
 def gerar_pdf(registro, fotos_paths):
+    import io
+    from reportlab.platypus import Table, TableStyle, Paragraph
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.enums import TA_LEFT
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.colors import HexColor, black, lightgrey, white, darkgrey
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.utils import ImageReader
+    from PIL import Image as PILImage
+    from pathlib import Path
+    from datetime import datetime
+
     buffer = io.BytesIO()
     try:
         c = canvas.Canvas(buffer, pagesize=A4)
         width, height = A4
         margem = 30
 
+        # --- Cabeçalho (personalize conforme desejar) ---
         draw_header(c, width, height, LOGO_PDF_PATH)
         y = height - 100
 
+        # --- Tabela de informações gerais da obra ---
         y = draw_info_table(c, registro, width, height, y, margem)
 
-        # Exibe CONDIÇÕES DO DIA em destaque
+        # --- Bloco Clima / Condições do Dia ---
+        box_clima_h = 30
+        c.rect(margem, y - box_clima_h, width - 2*margem, box_clima_h)
         c.setFont("Helvetica-Bold", 10)
-        c.drawString(margem, y - 10, "Condições do dia:")
+        c.drawString(margem + 5, y - 15, "Condições do dia:")
         c.setFont("Helvetica", 11)
-        c.drawString(margem + 120, y - 10, registro.get('Clima', 'N/A'))
-        y -= 25
+        c.drawString(margem + 120, y - 15, registro.get('Clima', 'N/A'))
+        y -= (box_clima_h + 5)
 
-        # Bloco Máquinas e Equipamentos
+        # --- Máquinas e Equipamentos ---
         box_maquinas_h = 60
         c.rect(margem, y - box_maquinas_h, width - 2*margem, box_maquinas_h)
+        c.setFont("Helvetica-Bold", 10)
         c.drawString(margem + 5, y - 15, "Máquinas e Equipamentos:")
+        c.setFont("Helvetica", 10)
         y_text_maquinas = y - 30
         draw_text_area_with_wrap(c, registro.get('Máquinas', 'Nenhuma máquina/equipamento informado.'), margem + 15, y_text_maquinas, (width - 2*margem) - 20, line_height=12)
         y -= (box_maquinas_h + 5)
 
-        # Bloco Serviços Executados
+        # --- Serviços Executados ---
         box_servicos_h = 100
         c.rect(margem, y - box_servicos_h, width - 2*margem, box_servicos_h)
+        c.setFont("Helvetica-Bold", 10)
         c.drawString(margem + 5, y - 15, "Serviços Executados:")
+        c.setFont("Helvetica", 10)
         y_text_servicos = y - 30
         draw_text_area_with_wrap(c, registro.get('Serviços', 'Nenhum serviço executado informado.'), margem + 15, y_text_servicos, (width - 2*margem) - 20, line_height=12)
         y -= (box_servicos_h + 5)
 
-        # Efetivo de pessoal
+        # --- Efetivo de Pessoal ---
         c.setFont("Helvetica-Bold", 10)
         c.drawString(margem, y - 10, "Efetivo de Pessoal:")
         y -= 25
-        y = draw_efetivo_table(c, registro.get("Efetivo", "[]"), width, height, y, margem)
 
-        # Ocorrências
+        # --- Tabela de Efetivo (com quebra de linha no nome) ---
+        from reportlab.lib.enums import TA_LEFT
+        from reportlab.platypus import Paragraph
+        from reportlab.lib.styles import ParagraphStyle
+        try:
+            efetivo_data = json.loads(registro.get("Efetivo", "[]"))
+        except json.JSONDecodeError:
+            efetivo_data = []
+
+        data = [["NOME", "FUNÇÃO", "1ª ENTRADA", "1ª SAÍDA"]]
+        for item in efetivo_data:
+            nome_style = ParagraphStyle(
+                name='nome_style',
+                fontName='Helvetica',
+                fontSize=8,
+                alignment=TA_LEFT,
+                leading=10
+            )
+            nome_paragraph = Paragraph(item.get("Nome", ""), nome_style)
+            funcao_paragraph = Paragraph(item.get("Função", ""), nome_style)
+            data.append([
+                nome_paragraph,
+                funcao_paragraph,
+                item.get("Entrada", ""),
+                item.get("Saída", "")
+            ])
+        min_rows_display = 6
+        while len(data) < min_rows_display + 1:
+            data.append(["", "", "", ""])
+        table = Table(data, colWidths=[220, 100, 65, 65])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), HexColor("#0F2A4D")),
+            ('TEXTCOLOR', (0,0), (-1,0), white),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,0), (-1,0), 9),
+            ('FONTSIZE', (0,1), (-1,-1), 8),
+            ('ALIGN', (0,0), (-1,0), 'CENTER'),
+            ('ALIGN', (2,1), (3,-1), 'CENTER'),
+            ('ALIGN', (0,1), (1,-1), 'LEFT'),
+            ('GRID', (0,0), (-1,-1), 0.5, lightgrey),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('WORDWRAP', (0,1), (1,-1), 'CJK'),
+        ]))
+        table_width, table_height = table.wrapOn(c, width - 2*margem, height)
+        table.drawOn(c, margem, y - table_height)
+        y -= (table_height + 10)
+
+        # --- Ocorrências ---
         c.setFont("Helvetica-Bold", 10)
         c.drawString(margem, y - 10, "Ocorrências:")
         c.setFont("Helvetica", 10)
@@ -277,7 +343,7 @@ def gerar_pdf(registro, fotos_paths):
         draw_text_area_with_wrap(c, registro.get('Ocorrências', 'Nenhuma ocorrência informada.'), margem + 5, y_text_ocorrencias, (width - 2*margem) - 10, line_height=12)
         y -= (box_ocorrencias_h + 10)
 
-        # Fiscalização
+        # --- Fiscalização ---
         c.setFont("Helvetica-Bold", 10)
         c.drawString(margem, y - 10, "Fiscalização:")
         c.setFont("Helvetica", 10)
@@ -287,10 +353,10 @@ def gerar_pdf(registro, fotos_paths):
         c.drawString(margem + 5, y - box_fiscalizacao_h + 10, f"Nome da Fiscalização: {registro.get('Fiscalização', 'N/A')}")
         y -= (box_fiscalizacao_h + 10)
 
-        # Rodapé (assinaturas) já vem logo após o conteúdo
+        # --- Rodapé (assinaturas) já logo após o conteúdo ---
         draw_footer(c, width, margem, y, registro)
 
-        # Fotos nas páginas seguintes
+        # --- Fotos nas páginas seguintes ---
         for i, foto_path in enumerate(fotos_paths):
             try:
                 if not Path(foto_path).exists():
@@ -321,10 +387,13 @@ def gerar_pdf(registro, fotos_paths):
                 c.drawImage(ImageReader(img), x_pos_img, img_y_pos, width=new_width, height=new_height)
             except Exception:
                 continue
+
         c.save()
         buffer.seek(0)
         return buffer
-    except Exception:
+
+    except Exception as e:
+        print("Erro ao gerar PDF:", e)
         return None
 
 def processar_fotos(fotos_upload, obra_nome, data_relatorio):
