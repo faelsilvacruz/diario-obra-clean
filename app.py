@@ -853,10 +853,10 @@ def render_diario_obra_page():
     # Aqui você pode implementar o restante da lógica para salvar, enviar, gerar PDF, etc.
 
     # 3. Lógica de processamento (FORA do form)
-    if st.button
+    if st.button("Salvar e Gerar Relatório"):
         temp_dir_obj_for_cleanup = None
         fotos_processed_paths = []
-        
+    
         try:
             # Validações básicas
             if not obra or obra == "":
