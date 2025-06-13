@@ -739,8 +739,6 @@ def render_diario_obra_page():
 
     obras_df = carregar_arquivo_csv("obras.csv")
     contratos_df = carregar_arquivo_csv("contratos.csv")
-
-    # Carrega colaboradores
     colab_df = pd.DataFrame()
     colaboradores_lista = []
     try:
@@ -760,45 +758,34 @@ def render_diario_obra_page():
     obras_lista = [""] + obras_df["Nome"].tolist()
     contratos_lista = [""] + contratos_df["Nome"].tolist()
 
-    # ------------ FORMULÁRIO ÚNICO ------------
-    if 'num_colabs_input' not in st.session_state:
-        st.session_state.num_colabs_input = 1  # Valor inicial = 1
-
     with st.form("form_diario_obra"):
         st.title("Relatório Diário de Obra - RDV Engenharia")
-
-        # --- Dados Gerais da Obra ---
         st.subheader("Dados Gerais da Obra")
-        obra = st.selectbox("Obra", obras_lista, key="obra_select")
-        local = st.text_input("Local", key="local_input")
-        data = st.date_input("Data", datetime.today(), key="data_input")
-        contrato = st.selectbox("Contrato", contratos_lista, key="contrato_select")
+        obra = st.selectbox("Obra", obras_lista)
+        local = st.text_input("Local")
+        data = st.date_input("Data", datetime.today())
+        contrato = st.selectbox("Contrato", contratos_lista)
         clima = st.selectbox("Condições do dia",
-                             ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado", "Guarda"],
-                             key="clima_select")
-        maquinas = st.text_area("Máquinas e equipamentos utilizados", key="maquinas_text")
-        servicos = st.text_area("Serviços executados no dia", key="servicos_text")
+                             ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado", "Guarda"])
+        maquinas = st.text_area("Máquinas e equipamentos utilizados")
+        servicos = st.text_area("Serviços executados no dia")
 
         st.markdown("---")
 
-        # --- Efetivo de Pessoal ---
         st.subheader("Efetivo de Pessoal")
         max_colabs = len(colaboradores_lista) if colaboradores_lista else 8
         qtd_colaboradores = st.number_input(
             "Quantos colaboradores hoje?",
             min_value=1,
             max_value=max_colabs,
-            value=1,  # Valor inicial fixo
-            step=1,
-            key="num_colabs_input"
+            value=1,
+            step=1
         )
-        # NÃO precisa atualizar session_state manualmente!
 
         efetivo_lista = []
-        for i in range(int(st.session_state.num_colabs_input)):
+        for i in range(int(qtd_colaboradores)):
             with st.expander(f"Colaborador {i+1}", expanded=True):
                 nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
-                # Puxa a função automaticamente e mostra campo só leitura
                 funcao = ""
                 if nome and not colab_df.empty and nome in colab_df["Nome"].values:
                     funcao = colab_df.loc[colab_df["Nome"] == nome, "Função"].values[0]
@@ -820,18 +807,14 @@ def render_diario_obra_page():
                 })
 
         st.markdown("---")
-
-        # --- Informações Adicionais ---
         st.subheader("Informações Adicionais")
-        ocorrencias = st.text_area("Ocorrências", key="ocorrencias_text")
-        nome_empresa = st.text_input("Responsável pela empresa", key="responsavel_input")
-        nome_fiscal = st.text_input("Nome da fiscalização", key="fiscalizacao_input")
+        ocorrencias = st.text_area("Ocorrências")
+        nome_empresa = st.text_input("Responsável pela empresa")
+        nome_fiscal = st.text_input("Nome da fiscalização")
         fotos = st.file_uploader("Fotos do serviço",
                                  accept_multiple_files=True,
-                                 type=["png", "jpg", "jpeg"],
-                                 key="fotos_uploader")
+                                 type=["png", "jpg", "jpeg"])
 
-        # Botão único no final
         submitted = st.form_submit_button("Salvar e Gerar Relatório")
 
     # --- Processamento final ---
