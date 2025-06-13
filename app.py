@@ -760,14 +760,14 @@ def render_diario_obra_page():
     obras_lista = [""] + obras_df["Nome"].tolist()
     contratos_lista = [""] + contratos_df["Nome"].tolist()
 
-    # ----------------- FORMULÁRIO ÚNICO -----------------
+    # ------------ FORMULÁRIO ÚNICO ------------
     if 'num_colabs_input' not in st.session_state:
-        st.session_state.num_colabs_input = 2
+        st.session_state.num_colabs_input = 1  # Valor inicial = 1
 
     with st.form("form_diario_obra"):
         st.title("Relatório Diário de Obra - RDV Engenharia")
 
-        # --- Bloco: Dados Gerais da Obra ---
+        # --- Dados Gerais da Obra ---
         st.subheader("Dados Gerais da Obra")
         obra = st.selectbox("Obra", obras_lista, key="obra_select")
         local = st.text_input("Local", key="local_input")
@@ -781,27 +781,28 @@ def render_diario_obra_page():
 
         st.markdown("---")
 
-        # --- Bloco: Efetivo de Pessoal ---
+        # --- Efetivo de Pessoal ---
         st.subheader("Efetivo de Pessoal")
         max_colabs = len(colaboradores_lista) if colaboradores_lista else 8
         qtd_colaboradores = st.number_input(
             "Quantos colaboradores hoje?",
             min_value=1,
             max_value=max_colabs,
-            value=1,
+            value=1,  # Valor inicial fixo
             step=1,
             key="num_colabs_input"
         )
-        # NÃO PRECISA atualizar manualmente o session_state aqui!
+        # NÃO precisa atualizar session_state manualmente!
 
         efetivo_lista = []
-        for i in range(int(qtd_colaboradores)):
+        for i in range(int(st.session_state.num_colabs_input)):
             with st.expander(f"Colaborador {i+1}", expanded=True):
                 nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
+                # Puxa a função automaticamente e mostra campo só leitura
                 funcao = ""
                 if nome and not colab_df.empty and nome in colab_df["Nome"].values:
                     funcao = colab_df.loc[colab_df["Nome"] == nome, "Função"].values[0]
-                funcao = st.text_input("Função", value=funcao, key=f"colab_funcao_{i}")
+                st.text_input("Função", value=funcao, key=f"colab_funcao_{i}", disabled=True)
                 col1, col2 = st.columns(2)
                 with col1:
                     entrada = st.time_input("Entrada",
@@ -820,7 +821,7 @@ def render_diario_obra_page():
 
         st.markdown("---")
 
-        # --- Bloco: Informações Adicionais ---
+        # --- Informações Adicionais ---
         st.subheader("Informações Adicionais")
         ocorrencias = st.text_area("Ocorrências", key="ocorrencias_text")
         nome_empresa = st.text_input("Responsável pela empresa", key="responsavel_input")
@@ -830,8 +831,14 @@ def render_diario_obra_page():
                                  type=["png", "jpg", "jpeg"],
                                  key="fotos_uploader")
 
-        # --- Botão único no final ---
+        # Botão único no final
         submitted = st.form_submit_button("Salvar e Gerar Relatório")
+
+    # --- Processamento final ---
+    if submitted:
+        # Sua lógica para processar, gerar relatório, PDF, enviar e-mail, etc.
+        st.success("Relatório salvo! (Aqui entra sua lógica de geração do relatório, PDF, etc.)")
+
     # 3. Lógica de processamento (FORA do form)
     if submitted:
         temp_dir_obj_for_cleanup = None
