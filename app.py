@@ -733,115 +733,113 @@ def render_diario_obra_page():
     from datetime import datetime
     import streamlit as st
 
-@st.cache_data(ttl=3600)
-def carregar_arquivo_csv(nome_arquivo):
-    if not os.path.exists(nome_arquivo):
-        st.error(f"Erro: Arquivo de dados '{nome_arquivo}' não encontrado.")
-        return pd.DataFrame()
+    @st.cache_data(ttl=3600)
+    def carregar_arquivo_csv(nome_arquivo):
+        if not os.path.exists(nome_arquivo):
+            st.error(f"Erro: Arquivo de dados '{nome_arquivo}' não encontrado.")
+            return pd.DataFrame()
+        try:
+            return pd.read_csv(nome_arquivo)
+        except Exception as e:
+            st.error(f"Erro ao ler o arquivo '{nome_arquivo}': {e}")
+            return pd.DataFrame()
+
+    # --- Carrega os dados ---
+    obras_df = carregar_arquivo_csv("obras.csv")
+    contratos_df = carregar_arquivo_csv("contratos.csv")
+
+    # Carrega colaboradores com tratamento mais robusto
+    colab_df = pd.DataFrame()
+    colaboradores_lista = []
     try:
-        return pd.read_csv(nome_arquivo)
+        colab_df = pd.read_csv("colaboradores.csv")
+        if not colab_df.empty and {"Nome", "Função"}.issubset(colab_df.columns):
+            colab_df["Nome"] = colab_df["Nome"].astype(str).str.strip()
+            colab_df["Nome_Normalizado"] = colab_df["Nome"].str.lower().str.strip()
+            colaboradores_lista = colab_df["Nome"].tolist()
+        else:
+            st.error("'colaboradores.csv' deve ter colunas 'Nome' e 'Função'.")
+    except FileNotFoundError:
+        st.error("Arquivo 'colaboradores.csv' não encontrado.")
     except Exception as e:
-        st.error(f"Erro ao ler o arquivo '{nome_arquivo}': {e}")
-        return pd.DataFrame()
+        st.error(f"Erro ao carregar 'colaboradores.csv': {e}")
 
-# --- Carrega os dados ---
-obras_df = carregar_arquivo_csv("obras.csv")
-contratos_df = carregar_arquivo_csv("contratos.csv")
+    if obras_df.empty or contratos_df.empty:
+        st.stop()
 
-# Carrega colaboradores com tratamento mais robusto
-colab_df = pd.DataFrame()
-colaboradores_lista = []
-try:
-    colab_df = pd.read_csv("colaboradores.csv")
-    if not colab_df.empty and {"Nome", "Função"}.issubset(colab_df.columns):
-        colab_df["Nome"] = colab_df["Nome"].astype(str).str.strip()
-        colab_df["Nome_Normalizado"] = colab_df["Nome"].str.lower().str.strip()
-        colaboradores_lista = colab_df["Nome"].tolist()
-    else:
-        st.error("'colaboradores.csv' deve ter colunas 'Nome' e 'Função'.")
-except FileNotFoundError:
-    st.error("Arquivo 'colaboradores.csv' não encontrado.")
-except Exception as e:
-    st.error(f"Erro ao carregar 'colaboradores.csv': {e}")
+    obras_lista = [""] + obras_df["Nome"].tolist()
+    contratos_lista = [""] + contratos_df["Nome"].tolist()
 
-if obras_df.empty or contratos_df.empty:
-    st.stop()
+    st.title("Relatório Diário de Obra - RDV Engenharia")
+    st.subheader("Dados Gerais da Obra")
+    obra = st.selectbox("Obra", obras_lista)
+    local = st.text_input("Local")
+    data = st.date_input("Data", datetime.today())
+    contrato = st.selectbox("Contrato", contratos_lista)
+    clima = st.selectbox("Condições do dia",
+                         ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado", "Guarda"])
+    maquinas = st.text_area("Máquinas e equipamentos utilizados")
+    servicos = st.text_area("Serviços executados no dia")
 
-obras_lista = [""] + obras_df["Nome"].tolist()
-contratos_lista = [""] + contratos_df["Nome"].tolist()
+    st.markdown("---")
+    st.subheader("Efetivo de Pessoal")
 
-st.title("Relatório Diário de Obra - RDV Engenharia")
-st.subheader("Dados Gerais da Obra")
-obra = st.selectbox("Obra", obras_lista)
-local = st.text_input("Local")
-data = st.date_input("Data", datetime.today())
-contrato = st.selectbox("Contrato", contratos_lista)
-clima = st.selectbox("Condições do dia",
-                     ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado", "Guarda"])
-maquinas = st.text_area("Máquinas e equipamentos utilizados")
-servicos = st.text_area("Serviços executados no dia")
+    max_colabs = len(colaboradores_lista) if colaboradores_lista else 8
+    qtd_colaboradores = st.number_input(
+        "Quantos colaboradores hoje?",
+        min_value=1,
+        max_value=max_colabs,
+        value=1,
+        step=1
+    )
 
-st.markdown("---")
-st.subheader("Efetivo de Pessoal")
-
-max_colabs = len(colaboradores_lista) if colaboradores_lista else 8
-qtd_colaboradores = st.number_input(
-    "Quantos colaboradores hoje?",
-    min_value=1,
-    max_value=max_colabs,
-    value=1,
-    step=1
-)
-
-with st.form("form_diario_obra"):
-    mostrar_debug = st.toggle("Mostrar debug", key="mostrar_debug")
+    mostrar_debug = st.toggle("Mostrar debug", key="mostrar_debug_reativo")
     efetivo_lista = []
 
     for i in range(int(qtd_colaboradores)):
-        with st.expander(f"Colaborador {i+1}", expanded=True):
-            nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
+        with st.container():
+            with st.expander(f"Colaborador {i+1}", expanded=True):
+                nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_reativo_{i}")
+                funcao = ""
+                match = pd.DataFrame()
+                if nome and not colab_df.empty:
+                    nome_normalizado = nome.strip().lower()
+                    match = colab_df[colab_df["Nome_Normalizado"] == nome_normalizado]
+                    if not match.empty:
+                        funcao = match.iloc[0]["Função"].strip()
 
-            # Busca a função
-            funcao = ""
-            match = pd.DataFrame()
-            if nome and not colab_df.empty:
-                nome_normalizado = nome.strip().lower()
-                match = colab_df[colab_df["Nome_Normalizado"] == nome_normalizado]
-                if not match.empty:
-                    funcao = match.iloc[0]["Função"].strip()
+                st.markdown("Função:")
+                valor_exibir = funcao if funcao else "Selecione o colaborador para exibir a função"
+                cor_valor = "#fff" if funcao else "#888"
+                st.markdown(
+                    f"""
+                    <div style="background:#262730;color:{cor_valor};padding:9px 14px;
+                    border-radius:7px;border:1.5px solid #363636;font-size:16px;
+                    font-family:inherit;margin-bottom:10px;margin-top:2px;height:38px;
+                    display:flex;align-items:center;">{valor_exibir}</div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
-            # Exibição da função
-            st.markdown("Função:")
-            valor_exibir = funcao if funcao else "Selecione o colaborador para exibir a função"
-            cor_valor = "#fff" if funcao else "#888"
-            st.markdown(
-                f"""
-                <div style="background:#262730;color:{cor_valor};padding:9px 14px;
-                border-radius:7px;border:1.5px solid #363636;font-size:16px;
-                font-family:inherit;margin-bottom:10px;margin-top:2px;height:38px;
-                display:flex;align-items:center;">{valor_exibir}</div>
-                """,
-                unsafe_allow_html=True
-            )
+                col1, col2 = st.columns(2)
+                with col1:
+                    entrada = st.time_input("Entrada", value=datetime.strptime("08:00", "%H:%M").time(), key=f"colab_entrada_reativo_{i}")
+                with col2:
+                    saida = st.time_input("Saída", value=datetime.strptime("17:00", "%H:%M").time(), key=f"colab_saida_reativo_{i}")
 
-            col1, col2 = st.columns(2)
-            with col1:
-                entrada = st.time_input("Entrada", value=datetime.strptime("08:00", "%H:%M").time(), key=f"colab_entrada_{i}")
-            with col2:
-                saida = st.time_input("Saída", value=datetime.strptime("17:00", "%H:%M").time(), key=f"colab_saida_{i}")
-            efetivo_lista.append({
-                "Nome": nome,
-                "Função": funcao,
-                "Entrada": entrada.strftime("%H:%M"),
-                "Saída": saida.strftime("%H:%M")
-            })
+                efetivo_lista.append({
+                    "Nome": nome,
+                    "Função": funcao,
+                    "Entrada": entrada.strftime("%H:%M"),
+                    "Saída": saida.strftime("%H:%M")
+                })
 
-            # Debug individual (apenas para este colaborador)
-            if mostrar_debug:
-                st.write("Nome selecionado:", nome)
-                if nome:
-                    st.write("Match encontrado:", match if not match.empty else "Não encontrado")
-                st.write("Função:", funcao)
+                # Debug individual (apenas para este colaborador)
+                if mostrar_debug:
+                    st.write("Nome selecionado:", nome)
+                    if nome:
+                        st.write("Match encontrado:", match if not match.empty else "Não encontrado")
+                    st.write("Função:", funcao)
 
     st.markdown("---")
     st.subheader("Informações Adicionais")
@@ -849,13 +847,11 @@ with st.form("form_diario_obra"):
     nome_empresa = st.text_input("Responsável pela empresa")
     nome_fiscal = st.text_input("Nome da fiscalização")
     fotos = st.file_uploader("Fotos do serviço", accept_multiple_files=True, type=["png", "jpg", "jpeg"])
-    submitted = st.form_submit_button("Salvar e Gerar Relatório")
 
-if submitted:
-    st.success("Relatório salvo! (Aqui entra sua lógica de geração do relatório, PDF, etc.)")
-    st.write("Efetivo registrado:", efetivo_lista)
+    if st.button("Salvar e Gerar Relatório"):
+        st.success("Relatório salvo! (Aqui entra sua lógica de geração do relatório, PDF, etc.)")
+        st.write("Efetivo registrado:", efetivo_lista)
     # Aqui você pode implementar o restante da lógica para salvar, enviar, gerar PDF, etc.
-
 
     # 3. Lógica de processamento (FORA do form)
     if submitted:
