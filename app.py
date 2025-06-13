@@ -425,6 +425,7 @@ if 'num_colabs_slider' not in st.session_state:
 init_db()
 
 # --- TELA DE LOGIN ---
+# --- TELA DE LOGIN, FORA DE QUALQUER FUNÇÃO ---
 if not st.session_state.logged_in:
     st.markdown(f"""
     <style>
