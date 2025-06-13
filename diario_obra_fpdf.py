@@ -6,16 +6,27 @@ import os
 
 class DiarioObraPDF(FPDF):
     def header(self):
+        # Fundo azul institucional para o topo
+        self.set_fill_color(15, 42, 77)  # azul institucional
+        self.rect(0, 0, self.w, 35, 'F')
+
+        # Fundo branco para a logo (ou azul mais escuro, se preferir)
+        self.set_fill_color(255,255,255)
+        self.rect(12, 8, 25, 19, 'F')  # caixa branca atrás da logo
+
+        # Logo (ajuste y/x se necessário para centralizar na caixa)
         logo_path = "LOGO_RDV_AZUL-sem fundo.png"
         if os.path.exists(logo_path):
-            self.image(logo_path, 12, 8, 25)
-        self.set_xy(38, 10)
-        self.set_font('Arial', 'B', 16)
-        self.set_text_color(15, 42, 77)
-        self.cell(0, 8, 'DIÁRIO DE OBRA', border=0, ln=2, align='L')
-        self.set_font('Arial', 'B', 13)
-        self.cell(0, 8, 'RDV ENGENHARIA', border=0, ln=1, align='L')
-        self.ln(2)
+            self.image(logo_path, 12, 8, 25, 19)  # ocupa a caixa branca
+
+        # Título centralizado
+        self.set_xy(0, 10)
+        self.set_font('Arial', 'B', 17)
+        self.set_text_color(255, 255, 255)
+        self.cell(self.w, 10, 'DIÁRIO DE OBRA', border=0, ln=2, align='C')
+        self.set_font('Arial', 'B', 12)
+        self.cell(self.w, 7, 'RDV ENGENHARIA', border=0, ln=1, align='C')
+        self.ln(7)
 
     def footer(self):
         self.set_y(-15)
