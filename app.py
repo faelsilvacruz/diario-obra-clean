@@ -700,17 +700,24 @@ def render_diario_obra_page():
     colab_df = pd.DataFrame()
     colaboradores_lista = []
     try:
-        colab_df = pd.read_csv("colaboradores.csv")
-        if not {"Nome", "Função"}.issubset(colab_df.columns):
-            st.error("O arquivo 'colaboradores.csv' deve conter as colunas 'Nome' e 'Função'.")
-            colab_df = pd.DataFrame() # Reseta para DataFrame vazio se colunas faltarem
-        else:
+        colab_df = pd.read_csv("colaboradores.csv", quotechar='"', skipinitialspace=True)
+        if not colab_df.empty and {"Nome", "Função"}.issubset(colab_df.columns):
+            # Remove linhas com valores NaN
+            colab_df = colab_df.dropna()
+            # Normaliza os nomes
+            colab_df["Nome"] = colab_df["Nome"].astype(str).str.strip()
+            colab_df["Função"] = colab_df["Função"].astype(str).str.strip()
+            colab_df["Nome_Normalizado"] = colab_df["Nome"].str.lower().str.strip()
             colaboradores_lista = colab_df["Nome"].tolist()
+        else:
+            st.error("'colaboradores.csv' deve ter colunas 'Nome' e 'Função'.")
+    except pd.errors.ParserError:
+        st.error("Erro ao ler o arquivo CSV. Verifique se não há vírgulas extras nos nomes.")
     except FileNotFoundError:
-        st.error("Arquivo 'colaboradores.csv' não encontrado. Por favor, crie-o na mesma pasta da aplicação.")
+        st.error("Arquivo 'colaboradores.csv' não encontrado.")
     except Exception as e:
-        st.error(f"Erro ao carregar ou processar 'colaboradores.csv': {e}")
-        colab_df = pd.DataFrame()
+        st.error(f"Erro ao carregar 'colaboradores.csv': {e}")
+            colab_df = pd.DataFrame()
 
     if obras_df.empty or contratos_df.empty:
         st.stop()
