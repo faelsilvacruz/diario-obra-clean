@@ -787,24 +787,29 @@ def render_diario_obra_page():
         efetivo_lista = []
         for i in range(int(qtd_colaboradores)):
             with st.expander(f"Colaborador {i+1}", expanded=True):
-                nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
-                funcao = ""
-                if nome and not colab_df.empty:
-                    match = colab_df[colab_df["Nome"].str.strip().str.lower() == nome.strip().lower()]
-                    if not match.empty:
-                        funcao = match.iloc[0]["Função"]
-                st.text_input("Função", value=funcao, key=f"colab_funcao_{i}", disabled=True)
-                col1, col2 = st.columns(2)
-                with col1:
-                    entrada = st.time_input("Entrada", value=datetime.strptime("08:00", "%H:%M").time(), key=f"colab_entrada_{i}")
-                with col2:
-                    saida = st.time_input("Saída", value=datetime.strptime("17:00", "%H:%M").time(), key=f"colab_saida_{i}")
-                efetivo_lista.append({
-                    "Nome": nome,
-                    "Função": funcao,
-                    "Entrada": entrada.strftime("%H:%M"),
-                    "Saída": saida.strftime("%H:%M")
-                })
+    nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
+    funcao = ""
+    if nome and not colab_df.empty:
+        match = colab_df[colab_df["Nome"].str.strip().str.lower() == nome.strip().lower()]
+        if not match.empty:
+            funcao = match.iloc[0]["Função"]
+    # Exibe a função abaixo do selectbox
+    if funcao:
+        st.markdown(f"**Função:** {funcao}")
+    else:
+        st.markdown(f"<span style='color:#888'>Selecione o colaborador para exibir a função</span>", unsafe_allow_html=True)
+    col1, col2 = st.columns(2)
+    with col1:
+        entrada = st.time_input("Entrada", value=datetime.strptime("08:00", "%H:%M").time(), key=f"colab_entrada_{i}")
+    with col2:
+        saida = st.time_input("Saída", value=datetime.strptime("17:00", "%H:%M").time(), key=f"colab_saida_{i}")
+    efetivo_lista.append({
+        "Nome": nome,
+        "Função": funcao,
+        "Entrada": entrada.strftime("%H:%M"),
+        "Saída": saida.strftime("%H:%M")
+    })
+
 
         st.markdown("---")
         st.subheader("Informações Adicionais")
