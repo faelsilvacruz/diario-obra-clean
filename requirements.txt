@@ -6,4 +6,4 @@ google-auth-oauthlib
 reportlab
 pillow
 yagmail
-
+fpdf
