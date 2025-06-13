@@ -717,7 +717,7 @@ def render_diario_obra_page():
         st.error("Arquivo 'colaboradores.csv' não encontrado.")
     except Exception as e:
         st.error(f"Erro ao carregar 'colaboradores.csv': {e}")
-            colab_df = pd.DataFrame()
+        colab_df = pd.DataFrame()
 
     if obras_df.empty or contratos_df.empty:
         st.stop()
