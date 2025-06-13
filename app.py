@@ -748,7 +748,7 @@ def render_diario_obra_page():
     obras_df = carregar_arquivo_csv("obras.csv")
     contratos_df = carregar_arquivo_csv("contratos.csv")
 
-    # Carrega colaboradores com tratamento mais robusto
+    # Carrega colaboradores
     colab_df = pd.DataFrame()
     colaboradores_lista = []
     try:
@@ -793,21 +793,19 @@ def render_diario_obra_page():
         step=1
     )
 
-    mostrar_debug = st.toggle("Mostrar debug", key="mostrar_debug_reativo")
     efetivo_lista = []
-
     for i in range(int(qtd_colaboradores)):
         with st.container():
             with st.expander(f"Colaborador {i+1}", expanded=True):
                 nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_reativo_{i}")
                 funcao = ""
-                match = pd.DataFrame()
                 if nome and not colab_df.empty:
                     nome_normalizado = nome.strip().lower()
                     match = colab_df[colab_df["Nome_Normalizado"] == nome_normalizado]
                     if not match.empty:
                         funcao = match.iloc[0]["Função"].strip()
 
+                # Exibição da função (campo estilizado)
                 st.markdown("Função:")
                 valor_exibir = funcao if funcao else "Selecione o colaborador para exibir a função"
                 cor_valor = "#fff" if funcao else "#888"
@@ -834,13 +832,6 @@ def render_diario_obra_page():
                     "Saída": saida.strftime("%H:%M")
                 })
 
-                # Debug individual (apenas para este colaborador)
-                if mostrar_debug:
-                    st.write("Nome selecionado:", nome)
-                    if nome:
-                        st.write("Match encontrado:", match if not match.empty else "Não encontrado")
-                    st.write("Função:", funcao)
-
     st.markdown("---")
     st.subheader("Informações Adicionais")
     ocorrencias = st.text_area("Ocorrências")
@@ -850,7 +841,9 @@ def render_diario_obra_page():
 
     if st.button("Salvar e Gerar Relatório"):
         st.success("Relatório salvo! (Aqui entra sua lógica de geração do relatório, PDF, etc.)")
-        st.write("Efetivo registrado:", efetivo_lista)
+        # Se quiser mostrar o resultado:
+        # st.write("Efetivo registrado:", efetivo_lista)
+
     # Aqui você pode implementar o restante da lógica para salvar, enviar, gerar PDF, etc.
 
     # 3. Lógica de processamento (FORA do form)
