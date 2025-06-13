@@ -737,6 +737,7 @@ def render_diario_obra_page():
             st.error(f"Erro ao ler o arquivo '{nome_arquivo}': {e}")
             return pd.DataFrame()
 
+    # --- Carrega os dados ---
     obras_df = carregar_arquivo_csv("obras.csv")
     contratos_df = carregar_arquivo_csv("contratos.csv")
     colab_df = pd.DataFrame()
@@ -744,7 +745,8 @@ def render_diario_obra_page():
     try:
         colab_df = pd.read_csv("colaboradores.csv")
         if {"Nome", "Função"}.issubset(colab_df.columns):
-            colaboradores_lista = colab_df["Nome"].str.strip().tolist()
+            colab_df["Nome"] = colab_df["Nome"].astype(str).str.strip() # Garante que não tenha espaços
+            colaboradores_lista = colab_df["Nome"].tolist()
         else:
             st.error("'colaboradores.csv' deve ter colunas 'Nome' e 'Função'.")
     except FileNotFoundError:
@@ -783,19 +785,21 @@ def render_diario_obra_page():
 
     with st.form("form_diario_obra"):
         efetivo_lista = []
+        # Garante a coluna normalizada apenas uma vez (fora do for)
+        colab_df["Nome_Normalizado"] = colab_df["Nome"].astype(str).str.strip().str.lower()
         for i in range(int(qtd_colaboradores)):
             with st.expander(f"Colaborador {i+1}", expanded=True):
                 nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
-                # Busca e exibe a função do colaborador em tempo real
+                nome_normalizado = nome.strip().lower() if nome else ""
                 funcao = ""
-                if nome and not colab_df.empty:
-                    match = colab_df[colab_df["Nome"].str.strip().str.lower() == nome.strip().lower()]
+                if nome_normalizado and not colab_df.empty:
+                    match = colab_df[colab_df["Nome_Normalizado"] == nome_normalizado]
                     if not match.empty:
                         funcao = match.iloc[0]["Função"]
                 if funcao:
                     st.markdown(f"**Função:** {funcao}")
                 else:
-                    st.markdown(f"<span style='color:#888'>Selecione o colaborador para exibir a função</span>", unsafe_allow_html=True)
+                    st.markdown("<span style='color:#888'>Selecione o colaborador para exibir a função</span>", unsafe_allow_html=True)
                 col1, col2 = st.columns(2)
                 with col1:
                     entrada = st.time_input("Entrada",
@@ -824,7 +828,6 @@ def render_diario_obra_page():
 
     if submitted:
         st.success("Relatório salvo! (Aqui entra sua lógica de geração do relatório, PDF, etc.)")
-
 
         # Sua lógica para processar, gerar relatório, PDF, enviar e-mail, etc.
         st.success("Relatório salvo! (Aqui entra sua lógica de geração do relatório, PDF, etc.)")
