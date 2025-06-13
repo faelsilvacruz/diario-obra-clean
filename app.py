@@ -664,7 +664,7 @@ if st.session_state.logged_in:
                                 </ul>
                                 """
                                 if enviar_email(
-                                    ["comercial@rdvengenharia.com.br", "administrativo@rdvengenharia.com.br"],
+                                    ["administrativo@rdvengenharia.com.br"],
                                     assunto, corpo, drive_id
                                 ):
                                     st.success("E-mail enviado com sucesso!")
