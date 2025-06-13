@@ -656,7 +656,6 @@ if st.session_state.logged_in:
                             fields='id',
                             supportsAllDrives=True
                         ).execute()
-                        st.write("Retorno do upload no Drive:", file)  # Mostra o dicionário retornado pela API
                         drive_id = file.get("id")
                         if drive_id:
                             st.success(f"PDF salvo no Google Drive! ID: {drive_id}")
