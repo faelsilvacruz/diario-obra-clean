@@ -797,10 +797,18 @@ def render_diario_obra_page():
                     match = colab_df[colab_df["Nome_Normalizado"] == nome_normalizado]
                     if not match.empty:
                         funcao = match.iloc[0]["Função"]
+                # Layout Função customizado
+                st.markdown("Função:")
                 if funcao:
-                    st.markdown(f"**Função:** {funcao}")
+                    st.markdown(
+                        f"<div style='padding:8px 12px;background:#222;border-radius:6px;color:#fff;font-size:1.05em'>{funcao}</div>",
+                        unsafe_allow_html=True
+                    )
                 else:
-                    st.markdown("<span style='color:#888'>Selecione o colaborador para exibir a função</span>", unsafe_allow_html=True)
+                    st.markdown(
+                        "<div style='padding:8px 12px;background:#222;border-radius:6px;color:#888'>Selecione o colaborador para exibir a função</div>",
+                        unsafe_allow_html=True
+                    )
                 col1, col2 = st.columns(2)
                 with col1:
                     entrada = st.time_input("Entrada",
