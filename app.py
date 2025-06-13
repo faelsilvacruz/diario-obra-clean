@@ -737,19 +737,15 @@ def render_diario_obra_page():
             st.error(f"Erro ao ler o arquivo '{nome_arquivo}': {e}")
             return pd.DataFrame()
 
-    # Carregar dados
+    # --- Carrega arquivos ---
     obras_df = carregar_arquivo_csv("obras.csv")
     contratos_df = carregar_arquivo_csv("contratos.csv")
-    
-    # Carregar colaboradores com tratamento mais robusto
     colab_df = pd.DataFrame()
     colaboradores_lista = []
     try:
         colab_df = pd.read_csv("colaboradores.csv")
         if {"Nome", "Função"}.issubset(colab_df.columns):
-            # Remover espaços extras e normalizar nomes
-            colab_df["Nome"] = colab_df["Nome"].str.strip()
-            colaboradores_lista = colab_df["Nome"].tolist()
+            colaboradores_lista = colab_df["Nome"].str.strip().tolist()
         else:
             st.error("'colaboradores.csv' deve ter colunas 'Nome' e 'Função'.")
     except FileNotFoundError:
@@ -763,67 +759,48 @@ def render_diario_obra_page():
     obras_lista = [""] + obras_df["Nome"].tolist()
     contratos_lista = [""] + contratos_df["Nome"].tolist()
 
-    st.title("Relatório Diário de Obra - RDV Engenharia")
-    st.subheader("Dados Gerais da Obra")
-    obra = st.selectbox("Obra", obras_lista)
-    local = st.text_input("Local")
-    data = st.date_input("Data", datetime.today())
-    contrato = st.selectbox("Contrato", contratos_lista)
-    clima = st.selectbox("Condições do dia",
-                         ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado", "Guarda"])
-    maquinas = st.text_area("Máquinas e equipamentos utilizados")
-    servicos = st.text_area("Serviços executados no dia")
-
-    st.markdown("---")
-
-    st.subheader("Efetivo de Pessoal")
-    
-    # Usar session_state para manter o estado do número de colaboradores
-    if 'qtd_colaboradores' not in st.session_state:
-        st.session_state.qtd_colaboradores = 1
-        
+    # 1. Input dinâmico fora do form!
     max_colabs = len(colaboradores_lista) if colaboradores_lista else 8
     qtd_colaboradores = st.number_input(
         "Quantos colaboradores hoje?",
         min_value=1,
         max_value=max_colabs,
-        value=st.session_state.qtd_colaboradores,
+        value=1,
         step=1,
-        key='qtd_colab_input'
+        key="num_colabs_reactive"
     )
-    
-    # Atualizar o session_state quando o valor mudar
-    if qtd_colaboradores != st.session_state.qtd_colaboradores:
-        st.session_state.qtd_colaboradores = qtd_colaboradores
-        st.experimental_rerun()
 
+    # 2. Formulário para todos os dados
     with st.form("form_diario_obra"):
+        st.title("Relatório Diário de Obra - RDV Engenharia")
+        st.subheader("Dados Gerais da Obra")
+        obra = st.selectbox("Obra", obras_lista)
+        local = st.text_input("Local")
+        data = st.date_input("Data", datetime.today())
+        contrato = st.selectbox("Contrato", contratos_lista)
+        clima = st.selectbox("Condições do dia",
+                             ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado", "Guarda"])
+        maquinas = st.text_area("Máquinas e equipamentos utilizados")
+        servicos = st.text_area("Serviços executados no dia")
+
+        st.markdown("---")
+        st.subheader("Efetivo de Pessoal")
+
         efetivo_lista = []
-        for i in range(st.session_state.qtd_colaboradores):
+        for i in range(int(qtd_colaboradores)):
             with st.expander(f"Colaborador {i+1}", expanded=True):
-                # Selectbox para nome com tratamento de string
                 nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
-                
-                # Buscar função de forma mais robusta
                 funcao = ""
                 if nome and not colab_df.empty:
-                    # Busca case-insensitive e ignorando espaços
                     match = colab_df[colab_df["Nome"].str.strip().str.lower() == nome.strip().lower()]
                     if not match.empty:
                         funcao = match.iloc[0]["Função"]
-                
                 st.text_input("Função", value=funcao, key=f"colab_funcao_{i}", disabled=True)
-                
                 col1, col2 = st.columns(2)
                 with col1:
-                    entrada = st.time_input("Entrada",
-                                           value=datetime.strptime("08:00", "%H:%M").time(),
-                                           key=f"colab_entrada_{i}")
+                    entrada = st.time_input("Entrada", value=datetime.strptime("08:00", "%H:%M").time(), key=f"colab_entrada_{i}")
                 with col2:
-                    saida = st.time_input("Saída",
-                                         value=datetime.strptime("17:00", "%H:%M").time(),
-                                         key=f"colab_saida_{i}")
-                
+                    saida = st.time_input("Saída", value=datetime.strptime("17:00", "%H:%M").time(), key=f"colab_saida_{i}")
                 efetivo_lista.append({
                     "Nome": nome,
                     "Função": funcao,
@@ -839,7 +816,6 @@ def render_diario_obra_page():
         fotos = st.file_uploader("Fotos do serviço",
                                  accept_multiple_files=True,
                                  type=["png", "jpg", "jpeg"])
-
         submitted = st.form_submit_button("Salvar e Gerar Relatório")
 
     # --- Processamento final ---
