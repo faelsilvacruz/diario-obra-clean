@@ -797,53 +797,18 @@ def render_diario_obra_page():
                     match = colab_df[colab_df["Nome_Normalizado"] == nome_normalizado]
                     if not match.empty:
                         funcao = match.iloc[0]["Função"]
-
-                # ---- Exibição da função igual ao input do Streamlit ----
+                # Layout Função customizado
                 st.markdown("Função:")
-                cor_fundo = "#232323"    # ou #262730 (ajuste conforme seu tema)
-                cor_borda = "#363636"
-                cor_texto = "#fff"
-                cor_placeholder = "#888"
-                padding = "10px 14px"
-                radius = "7px"
-                fonte = "inherit"
-
                 if funcao:
                     st.markdown(
-                        f"""
-                        <div style="
-                            background:{cor_fundo};
-                            color:{cor_texto};
-                            padding:{padding};
-                            border-radius:{radius};
-                            border:1.5px solid {cor_borda};
-                            font-size:16px;
-                            font-family:{fonte};
-                            margin-bottom:10px;
-                            margin-top:2px;
-                        ">{funcao}</div>
-                        """,
+                        f"<div style='padding:8px 12px;background:#222;border-radius:6px;color:#fff;font-size:1.05em'>{funcao}</div>",
                         unsafe_allow_html=True
                     )
                 else:
                     st.markdown(
-                        f"""
-                        <div style="
-                            background:{cor_fundo};
-                            color:{cor_placeholder};
-                            padding:{padding};
-                            border-radius:{radius};
-                            border:1.5px solid {cor_borda};
-                            font-size:16px;
-                            font-family:{fonte};
-                            margin-bottom:10px;
-                            margin-top:2px;
-                        ">Selecione o colaborador para exibir a função</div>
-                        """,
+                        "<div style='padding:8px 12px;background:#222;border-radius:6px;color:#888'>Selecione o colaborador para exibir a função</div>",
                         unsafe_allow_html=True
                     )
-                # --------------------------------------------------------
-
                 col1, col2 = st.columns(2)
                 with col1:
                     entrada = st.time_input("Entrada",
@@ -872,7 +837,6 @@ def render_diario_obra_page():
 
     if submitted:
         st.success("Relatório salvo! (Aqui entra sua lógica de geração do relatório, PDF, etc.)")
-
 
     # 3. Lógica de processamento (FORA do form)
     if submitted:
