@@ -15,7 +15,7 @@ class DiarioObraPDF(FPDF):
         self.rect(12, 8, 25, 19, 'F')  # caixa branca atrás da logo
 
         # Logo (ajuste y/x se necessário para centralizar na caixa)
-        logo_path = "LOGO_RDV_AZUL-sem fundo.png"
+        logo_path = "LOGO_RDV_AZUL.jpeg"
         if os.path.exists(logo_path):
             self.image(logo_path, 12, 8, 25, 19)  # ocupa a caixa branca
 
