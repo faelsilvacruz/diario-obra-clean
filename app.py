@@ -642,33 +642,48 @@ if st.session_state.logged_in:
                     mime="application/pdf",
                     type="primary"
                 )
-                with st.spinner("Enviando para Google Drive..."):
-                    pdf_buffer.seek(0)
-                    drive_id = upload_para_drive_seguro(pdf_buffer, nome_pdf)
-                    if drive_id:
-                        st.success(f"PDF salvo no Google Drive! ID: {drive_id}")
-                        st.markdown(f"[Abrir no Drive](https://drive.google.com/file/d/{drive_id}/view)")
-                        with st.spinner("Enviando e-mail..."):
-                            assunto = f"Diário de Obra - {obra} ({data.strftime('%d/%m/%Y')})"
-                            corpo = f"""
-                            <p>Relatório diário gerado:</p>
-                            <ul>
-                                <li>Obra: {obra}</li>
-                                <li>Data: {data.strftime('%d/%m/%Y')}</li>
-                                <li>Responsável: {nome_empresa}</li>
-                            </ul>
-                            """
-                            if enviar_email(
-                                ["comercial@rdvengenharia.com.br", "administrativo@rdvengenharia.com.br"],
-                                assunto, corpo, drive_id
-                            ):
-                                st.success("E-mail enviado com sucesso!")
-                            else:
-                                st.warning("PDF salvo no Drive, mas falha no envio do e-mail.")
+# ... (depois de gerar o PDF e antes do envio de e-mail) ...
+    with st.spinner("Enviando para Google Drive..."):
+        try:
+            # Recria o serviço sempre que for usar (seguro para múltiplos uploads)
+            service = build("drive", "v3", credentials=creds, static_discovery_docs=False)
+            pdf_buffer.seek(0)
+            media = MediaIoBaseUpload(pdf_buffer, mimetype='application/pdf', resumable=True)
+            file_metadata = {'name': nome_pdf, 'parents': [DRIVE_FOLDER_ID]}
+            file = service.files().create(
+                body=file_metadata,
+                media_body=media,
+                fields='id',
+                supportsAllDrives=True
+            ).execute()
+            st.write("Retorno do upload no Drive:", file)  # Mostra o dicionário retornado pela API
+            drive_id = file.get("id")
+            if drive_id:
+                st.success(f"PDF salvo no Google Drive! ID: {drive_id}")
+                st.markdown(f"[Abrir no Drive](https://drive.google.com/file/d/{drive_id}/view)")
+                # --- Envio de e-mail, se desejar ---
+                with st.spinner("Enviando e-mail..."):
+                    assunto = f"Diário de Obra - {obra} ({data.strftime('%d/%m/%Y')})"
+                    corpo = f"""
+                    <p>Relatório diário gerado:</p>
+                    <ul>
+                        <li>Obra: {obra}</li>
+                        <li>Data: {data.strftime('%d/%m/%Y')}</li>
+                        <li>Responsável: {nome_empresa}</li>
+                    </ul>
+                    """
+                    if enviar_email(
+                        ["comercial@rdvengenharia.com.br", "administrativo@rdvengenharia.com.br"],
+                        assunto, corpo, drive_id
+                    ):
+                        st.success("E-mail enviado com sucesso!")
                     else:
-                        st.error("Falha no upload para o Google Drive.")
-            except Exception as e:
-                st.error(f"Erro inesperado: {str(e)}")
+                        st.warning("PDF salvo no Drive, mas falha no envio do e-mail.")
+            else:
+                st.error("Upload feito, mas não foi possível recuperar o ID do arquivo no Google Drive.")
+        except Exception as e:
+            st.error(f"Falha no upload para o Google Drive. Erro: {e}")
+
             finally:
                 try:
                     if temp_dir_obj_for_cleanup and temp_dir_obj_for_cleanup.exists():
