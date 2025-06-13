@@ -758,30 +758,30 @@ def render_diario_obra_page():
     obras_lista = [""] + obras_df["Nome"].tolist()
     contratos_lista = [""] + contratos_df["Nome"].tolist()
 
+    st.title("Relatório Diário de Obra - RDV Engenharia")
+    st.subheader("Dados Gerais da Obra")
+    obra = st.selectbox("Obra", obras_lista)
+    local = st.text_input("Local")
+    data = st.date_input("Data", datetime.today())
+    contrato = st.selectbox("Contrato", contratos_lista)
+    clima = st.selectbox("Condições do dia",
+                         ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado", "Guarda"])
+    maquinas = st.text_area("Máquinas e equipamentos utilizados")
+    servicos = st.text_area("Serviços executados no dia")
+
+    st.markdown("---")
+
+    st.subheader("Efetivo de Pessoal")
+    max_colabs = len(colaboradores_lista) if colaboradores_lista else 8
+    qtd_colaboradores = st.number_input(
+        "Quantos colaboradores hoje?",
+        min_value=1,
+        max_value=max_colabs,
+        value=1,
+        step=1
+    )
+
     with st.form("form_diario_obra"):
-        st.title("Relatório Diário de Obra - RDV Engenharia")
-        st.subheader("Dados Gerais da Obra")
-        obra = st.selectbox("Obra", obras_lista)
-        local = st.text_input("Local")
-        data = st.date_input("Data", datetime.today())
-        contrato = st.selectbox("Contrato", contratos_lista)
-        clima = st.selectbox("Condições do dia",
-                             ["Bom", "Chuva", "Garoa", "Impraticável", "Feriado", "Guarda"])
-        maquinas = st.text_area("Máquinas e equipamentos utilizados")
-        servicos = st.text_area("Serviços executados no dia")
-
-        st.markdown("---")
-
-        st.subheader("Efetivo de Pessoal")
-        max_colabs = len(colaboradores_lista) if colaboradores_lista else 8
-        qtd_colaboradores = st.number_input(
-            "Quantos colaboradores hoje?",
-            min_value=1,
-            max_value=max_colabs,
-            value=1,
-            step=1
-        )
-
         efetivo_lista = []
         for i in range(int(qtd_colaboradores)):
             with st.expander(f"Colaborador {i+1}", expanded=True):
