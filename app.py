@@ -728,10 +728,10 @@ def render_diario_obra_page():
     st.title("Relatório Diário de Obra - RDV Engenharia")
 
 def render_diario_obra_page():
-import os
-import pandas as pd
-from datetime import datetime
-import streamlit as st
+    import os
+    import pandas as pd
+    from datetime import datetime
+    import streamlit as st
 
 @st.cache_data(ttl=3600)
 def carregar_arquivo_csv(nome_arquivo):
