@@ -786,21 +786,27 @@ def render_diario_obra_page():
     # Normaliza nomes para comparação exata
     colab_df["Nome_Normalizado"] = colab_df["Nome"].apply(lambda x: x.strip().lower())
 
-    # DEBUG ANTES DO FOR
+    # --- DEBUG FORA DO FORM ---
     st.write("Colaboradores_lista:", colaboradores_lista)
     st.write("DataFrame nomes normalizados:", list(colab_df["Nome_Normalizado"]))
+    for i in range(int(qtd_colaboradores)):
+        nome = st.selectbox(f"Nome (debug) colab {i+1}", [""] + colaboradores_lista, key=f"debug_colab_nome_{i}")
+        nome_normalizado = nome.strip().lower() if nome else ""
+        st.write(f"Nome selecionado: '{nome}', normalizado: '{nome_normalizado}'")
+        if nome_normalizado and not colab_df.empty:
+            match = colab_df[colab_df["Nome_Normalizado"] == nome_normalizado]
+            st.write("Match encontrado:", match)
 
+    # --- FORMULÁRIO PRINCIPAL ---
     with st.form("form_diario_obra"):
         efetivo_lista = []
         for i in range(int(qtd_colaboradores)):
             with st.expander(f"Colaborador {i+1}", expanded=True):
                 nome = st.selectbox("Nome", [""] + colaboradores_lista, key=f"colab_nome_{i}")
                 nome_normalizado = nome.strip().lower() if nome else ""
-                st.write(f"Nome selecionado: '{nome}', normalizado: '{nome_normalizado}'")
                 funcao = ""
                 if nome_normalizado and not colab_df.empty:
                     match = colab_df[colab_df["Nome_Normalizado"] == nome_normalizado]
-                    st.write("Match encontrado:", match)
                     if not match.empty:
                         funcao = match.iloc[0]["Função"]
 
