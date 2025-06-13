@@ -231,35 +231,44 @@ def gerar_pdf(registro, fotos_paths):
         c = canvas.Canvas(buffer, pagesize=A4)
         width, height = A4
         margem = 30
+
         draw_header(c, width, height, LOGO_PDF_PATH)
         y = height - 100
+
         y = draw_info_table(c, registro, width, height, y, margem)
+
+        # Exibe CONDIÇÕES DO DIA em destaque
         c.setFont("Helvetica-Bold", 10)
-        c.drawCentredString(width / 2, y - 10, "Serviços Executados / Anotações da Empresa")
-        c.setFont("Helvetica", 10)
+        c.drawString(margem, y - 10, "Condições do dia:")
+        c.setFont("Helvetica", 11)
+        c.drawString(margem + 120, y - 10, registro.get('Clima', 'N/A'))
         y -= 25
-        box_clima_h = 20
-        c.rect(margem, y - box_clima_h, width - 2*margem, box_clima_h)
-        c.drawString(margem + 5, y - 15, f"(1)- CLIMA: {registro.get('Clima', 'N/A')}")
-        y -= (box_clima_h + 5)
+
+        # Bloco Máquinas e Equipamentos
         box_maquinas_h = 60
         c.rect(margem, y - box_maquinas_h, width - 2*margem, box_maquinas_h)
-        c.drawString(margem + 5, y - 15, "(2)- MÁQUINAS E EQUIPAMENTOS:")
+        c.drawString(margem + 5, y - 15, "Máquinas e Equipamentos:")
         y_text_maquinas = y - 30
         draw_text_area_with_wrap(c, registro.get('Máquinas', 'Nenhuma máquina/equipamento informado.'), margem + 15, y_text_maquinas, (width - 2*margem) - 20, line_height=12)
         y -= (box_maquinas_h + 5)
+
+        # Bloco Serviços Executados
         box_servicos_h = 100
         c.rect(margem, y - box_servicos_h, width - 2*margem, box_servicos_h)
-        c.drawString(margem + 5, y - 15, "(3)- SERVIÇOS EXECUTADOS:")
+        c.drawString(margem + 5, y - 15, "Serviços Executados:")
         y_text_servicos = y - 30
         draw_text_area_with_wrap(c, registro.get('Serviços', 'Nenhum serviço executado informado.'), margem + 15, y_text_servicos, (width - 2*margem) - 20, line_height=12)
         y -= (box_servicos_h + 5)
+
+        # Efetivo de pessoal
         c.setFont("Helvetica-Bold", 10)
-        c.drawString(margem, y - 10, "(4)- EFETIVO DE PESSOAL")
+        c.drawString(margem, y - 10, "Efetivo de Pessoal:")
         y -= 25
         y = draw_efetivo_table(c, registro.get("Efetivo", "[]"), width, height, y, margem)
+
+        # Ocorrências
         c.setFont("Helvetica-Bold", 10)
-        c.drawString(margem, y - 10, "(5)- OUTRAS OCORRÊNCIAS:")
+        c.drawString(margem, y - 10, "Ocorrências:")
         c.setFont("Helvetica", 10)
         y -= 25
         box_ocorrencias_h = 60
@@ -267,37 +276,20 @@ def gerar_pdf(registro, fotos_paths):
         y_text_ocorrencias = y - 15
         draw_text_area_with_wrap(c, registro.get('Ocorrências', 'Nenhuma ocorrência informada.'), margem + 5, y_text_ocorrencias, (width - 2*margem) - 10, line_height=12)
         y -= (box_ocorrencias_h + 10)
+
+        # Fiscalização
         c.setFont("Helvetica-Bold", 10)
-        c.drawCentredString(width / 2, y - 10, "ANOTAÇÕES DA FISCALIZAÇÃO")
+        c.drawString(margem, y - 10, "Fiscalização:")
         c.setFont("Helvetica", 10)
         y -= 25
         box_fiscalizacao_h = 80
         c.rect(margem, y - box_fiscalizacao_h, width - 2*margem, box_fiscalizacao_h)
         c.drawString(margem + 5, y - box_fiscalizacao_h + 10, f"Nome da Fiscalização: {registro.get('Fiscalização', 'N/A')}")
         y -= (box_fiscalizacao_h + 10)
-        c.setFont("Helvetica-Bold", 10)
-        c.drawCentredString(width / 2, y - 10, "Mapa Pluviométrico")
-        c.setFont("Helvetica", 10)
-        y -= 25
-        mapa_pluv_data = [
-            ["00:00 às 3:00", ""], ["3:00 às 6:00", ""], ["6:00 às 9:00", ""],
-            ["9:00 às 12:00", ""], ["12:00 às 15:00", ""], ["15:00 às 18:00", ""],
-            ["18:00 às 21:00", ""], ["21:00 às 23:59", ""]
-        ]
-        table_pluv = Table(mapa_pluv_data, colWidths=[80, (width - 2*margem - 80)])
-        table_pluv.setStyle(TableStyle([
-            ('GRID', (0,0), (-1,-1), 0.5, black),
-            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('LEFTPADDING', (0,0), (-1,-1), 5),
-            ('RIGHTPADDING', (0,0), (-1,-1), 5),
-            ('TOPPADDING', (0,0), (-1,-1), 3),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-        ]))
-        table_pluv_width, table_pluv_height = table_pluv.wrapOn(c, width - 2*margem, height)
-        table_pluv.drawOn(c, margem, y - table_pluv_height)
-        y -= (table_pluv_height + 10)
+
+        # Rodapé (assinaturas) já vem logo após o conteúdo
         draw_footer(c, width, margem, y, registro)
+
         # Fotos nas páginas seguintes
         for i, foto_path in enumerate(fotos_paths):
             try:
