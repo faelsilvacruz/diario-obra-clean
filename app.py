@@ -654,7 +654,7 @@ if not st.session_state.logged_in:
         password_input = st.text_input("Senha", type="password", key="login_password")
         submitted = st.form_submit_button("Entrar")
 
-        if st.button
+        if st.button()
             if username_input and password_input:
                 hashed_password = make_hashes(password_input)
                 authenticated, role = login_user(username_input, hashed_password)
