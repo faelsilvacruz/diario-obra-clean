@@ -1,4 +1,3 @@
-
 import streamlit as st
 import sqlite3
 import hashlib
@@ -26,14 +25,6 @@ st.markdown(
     .stApp {
         background-color: #0F2A4D;
     }
-    .login-container {
-        background-color: white;
-        padding: 30px;
-        border-radius: 12px;
-        box-shadow: 0px 0px 15px rgba(0,0,0,0.5);
-        max-width: 400px;
-        margin: auto;
-    }
     .titulo-principal {
         text-align: center;
         color: white;
@@ -42,8 +33,13 @@ st.markdown(
         margin-bottom: 30px;
         font-weight: bold;
     }
+    .login-inputs {
+        max-width: 400px;
+        margin: auto;
+        background: transparent;
+    }
     .logo-rodape {
-        margin-top: 50px;
+        margin-top: 60px;
         text-align: center;
     }
     </style>
@@ -54,7 +50,7 @@ def main():
     st.markdown('<div class="titulo-principal">Acesso ao Diário de Obra</div>', unsafe_allow_html=True)
 
     with st.container():
-        st.markdown('<div class="login-container">', unsafe_allow_html=True)
+        st.markdown('<div class="login-inputs">', unsafe_allow_html=True)
 
         username = st.text_input('Usuário')
         password = st.text_input('Senha', type='password')
@@ -71,7 +67,7 @@ def main():
         st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="logo-rodape">', unsafe_allow_html=True)
-    st.image('logo_rdv.png', width=220)
+    st.image('logo_rdv.png', width=300)
     st.markdown('</div>', unsafe_allow_html=True)
 
 if __name__ == '__main__':
