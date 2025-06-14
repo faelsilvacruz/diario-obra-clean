@@ -5,20 +5,16 @@ import io
 import os
 
 class DiarioObraPDF(FPDF):
-    def header(self):   # <-- tem que estar INDENTADO!
-        # Fundo azul institucional para o topo
+    def header(self):
+        # ... seu código de header ...
         self.set_fill_color(15, 42, 77)  # azul institucional
         self.rect(0, 0, self.w, 35, 'F')
-
-        # Centraliza verticalmente a logo no bloco azul
         logo_path = "LOGO_RDV_AZUL.png"
         logo_h = 13
         bloco_h = 35
         y_logo = bloco_h / 2 - logo_h / 2
         if os.path.exists(logo_path):
             self.image(logo_path, 12, y_logo, 19, logo_h)
-
-        # Título centralizado (apenas "DIÁRIO DE OBRA")
         self.set_xy(0, 13)
         self.set_font('Arial', 'B', 18)
         self.set_text_color(255, 255, 255)
@@ -26,19 +22,18 @@ class DiarioObraPDF(FPDF):
         self.ln(2)
 
     def footer(self):
-        self.set_y(-15)
-        self.set_font('Arial', 'I', 8)
-        self.set_text_color(130, 130, 130)
-        self.cell(0, 6, f'Gerado em: {datetime.now().strftime("%d/%m/%Y %H:%M")} - Página {self.page_no()}', 0, 0, 'R')
+        # ... footer ...
+        pass
 
-def gerar_pdf_fpfd(dados_obra, colaboradores, maquinas, servicos, intercorrencias, responsavel, fiscal, clima, fotos_paths=None):
+def gerar_pdf_fpfd(...):
     pdf = DiarioObraPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=20)
+    pdf.ln(12)  # <-- Adicione esse espaçamento ANTES de começar os campos da obra!
 
-    # --- Dados da Obra ---
+    # agora segue com os campos normalmente
     pdf.set_font('Arial', 'B', 11)
-    pdf.set_text_color(0, 0, 0)
+    pdf.set_text_color(0,0,0)
     campos = [("OBRA:", dados_obra.get("obra", "")),
               ("LOCAL:", dados_obra.get("local", "")),
               ("DATA:", dados_obra.get("data", "")),
