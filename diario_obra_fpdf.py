@@ -97,19 +97,30 @@ def gerar_pdf_fpfd(dados_obra, colaboradores, maquinas, servicos, intercorrencia
     pdf.ln(2)
 
     # --- Assinaturas ---
-    pdf.set_font('Arial', '', 11)
-    pos_y = pdf.get_y()
-    pdf.cell(90, 8, 'Responsável Técnico:', 0, 0)
-    pdf.cell(0, 8, 'Fiscalização:', 0, 1)
-    pdf.cell(90, 8, f'Nome: {responsavel}', 0, 0)
-    pdf.cell(0, 8, f'Nome: {fiscal}', 0, 1)
-    pdf.cell(90, 5, '', 0, 0)
-    pdf.cell(0, 5, '', 0, 1)
-    x1 = pdf.get_x() - 200
-    y1 = pdf.get_y() + 2
-    pdf.line(x1, y1, x1+70, y1)
-    pdf.line(x1+90, y1, x1+160, y1)
-    pdf.ln(10)
+    pdf.set_fill_color(15, 42, 77)
+    pdf.rect(10, y_assin, 190, 28, 'F')
+
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font('Arial', 'B', 11)
+    pdf.set_xy(20, y_assin + 4)
+    pdf.cell(80, 8, 'Responsável Técnico:', 0, 0, 'L', 0)
+    pdf.cell(80, 8, 'Fiscalização:', 0, 1, 'L', 0)
+
+    pdf.set_font('Arial', '', 10)
+    pdf.set_xy(20, y_assin + 12)
+    pdf.cell(80, 8, f'Nome: {responsavel}', 0, 0, 'L', 0)
+    pdf.cell(80, 8, f'Nome: {fiscal}', 0, 1, 'L', 0)
+
+    # Linhas para assinatura
+    pdf.set_draw_color(255,255,255)
+    pdf.set_line_width(0.6)
+    pdf.line(25, y_assin + 23, 90, y_assin + 23)      # Responsável Técnico
+    pdf.line(115, y_assin + 23, 180, y_assin + 23)    # Fiscalização
+
+    # Restaura a cor preta para próximos elementos
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_line_width(0.2)
+    pdf.ln(30)
 
     # --- Fotos (cada uma em nova página) ---
     if fotos_paths:
