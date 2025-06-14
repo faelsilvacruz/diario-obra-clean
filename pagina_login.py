@@ -39,16 +39,16 @@ st.markdown(
         background: transparent;
     }
     .logo-rodape {
-        margin-top: 60px;
+        margin-top: 50px;
         text-align: center;
     }
     .logo-rodape img {
         display: block;
         margin-left: auto;
         margin-right: auto;
-        padding-left: 20px;
-        padding-right: 20px;
-        max-width: 320px;
+        padding-left: 10px;
+        padding-right: 10px;
+        max-width: 250px;
         height: auto;
     }
     </style>
@@ -76,7 +76,7 @@ def main():
         st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="logo-rodape">', unsafe_allow_html=True)
-    st.image('logo_rdv.png', use_column_width=False)
+    st.image('logo_rdv.png', use_container_width=False)
     st.markdown('</div>', unsafe_allow_html=True)
 
 if __name__ == '__main__':
