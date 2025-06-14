@@ -124,6 +124,7 @@ pdf.cell(largura_linha, 7, "Fiscalização:", 0, 2, 'C')
 pdf.cell(largura_linha, 7, f"Nome: {fiscal}", 0, 0, 'C')
 
 pdf.ln(20)
+
     # --- Fotos (cada uma em nova página) ---
     if fotos_paths:
         for path in fotos_paths:
