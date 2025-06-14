@@ -5,25 +5,25 @@ import io
 import os
 
 class DiarioObraPDF(FPDF):
-    def header(self):
-        # Fundo azul institucional para o topo
-        self.set_fill_color(15, 42, 77)  # azul institucional
-        self.rect(0, 0, self.w, 35, 'F')
+def header(self):
+    # Fundo azul institucional para o topo
+    self.set_fill_color(15, 42, 77)  # azul institucional
+    self.rect(0, 0, self.w, 35, 'F')
 
-        # Centraliza verticalmente a logo no bloco azul (ajuste conforme altura da sua logo)
-        logo_path = "LOGO_RDV_AZUL.png"
-        logo_h = 13
-        bloco_h = 35
-        y_logo = bloco_h / 2 - logo_h / 2
-        if os.path.exists(logo_path):
-            self.image(logo_path, 12, y_logo, 19, logo_h)
+    # Centraliza verticalmente a logo no bloco azul (ajuste conforme altura da sua logo)
+    logo_path = "LOGO_RDV_AZUL.png"
+    logo_h = 13
+    bloco_h = 35
+    y_logo = bloco_h / 2 - logo_h / 2
+    if os.path.exists(logo_path):
+        self.image(logo_path, 12, y_logo, 19, logo_h)
 
-        # Título centralizado (apenas "DIÁRIO DE OBRA")
-        self.set_xy(0, 10)
-        self.set_font('Arial', 'B', 17)
-        self.set_text_color(255, 255, 255)
-        self.cell(self.w, 15, 'DIÁRIO DE OBRA', border=0, ln=1, align='C')
-        self.ln(5)
+    # Título centralizado (apenas "DIÁRIO DE OBRA")
+    self.set_xy(0, 13)
+    self.set_font('Arial', 'B', 18)
+    self.set_text_color(255, 255, 255)
+    self.cell(self.w, 10, 'DIÁRIO DE OBRA', border=0, ln=1, align='C')
+    self.ln(2)
 
     def footer(self):
         self.set_y(-15)
