@@ -806,12 +806,12 @@ elif st.session_state.page == "Gerenciamento de Usuários":
         st.dataframe(df_users, use_container_width=True)
 
 # Renderiza a página selecionada
-if st.session_state.page == "Diário de Obra":
-    render_diario_obra_page()
-
-elif st.session_state.page == "Holerite":
-    st.title("Holerite")
-    st.warning("Funcionalidade em desenvolvimento... Em breve disponível.")
-
-elif st.session_state.page == "Gerenciamento de Usuários":
-    render_user_management_page()
+    if st.session_state.page == "Diário de Obra":
+        render_diario_obra_page()
+    
+    elif st.session_state.page == "Holerite":
+        st.title("Holerite")
+        st.warning("Funcionalidade em desenvolvimento... Em breve disponível.")
+    
+    elif st.session_state.page == "Gerenciamento de Usuários":
+        render_user_management_page()
