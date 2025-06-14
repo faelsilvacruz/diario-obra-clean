@@ -10,24 +10,25 @@ class DiarioObraPDF(FPDF):
         self.set_fill_color(15, 42, 77)  # azul institucional
         self.rect(0, 0, self.w, 35, 'F')
 
-        # Logo (ajuste y/x se necessário para centralizar na caixa)
+        # Centraliza verticalmente a logo no bloco azul (ajuste conforme altura da sua logo)
         logo_path = "LOGO_RDV_AZUL.png"
+        logo_h = 13
+        bloco_h = 35
+        y_logo = bloco_h / 2 - logo_h / 2
         if os.path.exists(logo_path):
-            self.image(logo_path, 12, 8, 19, 13)  # ocupa a caixa branca
+            self.image(logo_path, 12, y_logo, 19, logo_h)
 
-        # Título centralizado
+        # Título centralizado (apenas "DIÁRIO DE OBRA")
         self.set_xy(0, 10)
         self.set_font('Arial', 'B', 17)
         self.set_text_color(255, 255, 255)
-        self.cell(self.w, 10, 'DIÁRIO DE OBRA', border=0, ln=2, align='C')
-        self.set_font('Arial', 'B', 12)
-        self.cell(self.w, 7, 'RDV ENGENHARIA', border=0, ln=1, align='C')
-        self.ln(7)
+        self.cell(self.w, 15, 'DIÁRIO DE OBRA', border=0, ln=1, align='C')
+        self.ln(5)
 
     def footer(self):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
-        self.set_text_color(130,130,130)
+        self.set_text_color(130, 130, 130)
         self.cell(0, 6, f'Gerado em: {datetime.now().strftime("%d/%m/%Y %H:%M")} - Página {self.page_no()}', 0, 0, 'R')
 
 def gerar_pdf_fpfd(dados_obra, colaboradores, maquinas, servicos, intercorrencias, responsavel, fiscal, clima, fotos_paths=None):
@@ -37,7 +38,7 @@ def gerar_pdf_fpfd(dados_obra, colaboradores, maquinas, servicos, intercorrencia
 
     # --- Dados da Obra ---
     pdf.set_font('Arial', 'B', 11)
-    pdf.set_text_color(0,0,0)
+    pdf.set_text_color(0, 0, 0)
     campos = [("OBRA:", dados_obra.get("obra", "")),
               ("LOCAL:", dados_obra.get("local", "")),
               ("DATA:", dados_obra.get("data", "")),
@@ -56,7 +57,7 @@ def gerar_pdf_fpfd(dados_obra, colaboradores, maquinas, servicos, intercorrencia
     pdf.cell(0, 7, 'SERVIÇOS EXECUTADOS:', 0, 1, 'L', True)
     pdf.set_font('Arial', '', 10)
     pdf.multi_cell(0, 7, servicos.strip() if servicos.strip() else "Nenhum serviço informado.", 0, 1)
-    
+
     # --- Máquinas e Equipamentos ---
     pdf.ln(2)
     pdf.set_font('Arial', 'B', 11)
@@ -71,13 +72,13 @@ def gerar_pdf_fpfd(dados_obra, colaboradores, maquinas, servicos, intercorrencia
 
     # Cabeçalho da tabela
     pdf.set_fill_color(15, 42, 77)
-    pdf.set_text_color(255,255,255)
+    pdf.set_text_color(255, 255, 255)
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(70, 8, 'NOME', 1, 0, 'C', True)
     pdf.cell(40, 8, 'FUNÇÃO', 1, 0, 'C', True)
     pdf.cell(30, 8, 'ENTRADA', 1, 0, 'C', True)
     pdf.cell(30, 8, 'SAÍDA', 1, 1, 'C', True)
-    pdf.set_text_color(0,0,0)
+    pdf.set_text_color(0, 0, 0)
     pdf.set_font('Arial', '', 9)
     # Dados da tabela
     for row in colaboradores:
@@ -96,37 +97,39 @@ def gerar_pdf_fpfd(dados_obra, colaboradores, maquinas, servicos, intercorrencia
     pdf.multi_cell(0, 7, intercorrencias.strip() if intercorrencias.strip() else "Sem intercorrências.", 0, 1)
     pdf.ln(2)
 
-    # --- ASSINATURAS (CENTRALIZADAS E ALINHADAS COM OS NOMES) ---
+    # --- Assinaturas ---
     pdf.set_font('Arial', 'B', 11)
-    pdf.set_fill_color(220, 230, 242)
-    pdf.set_text_color(0,0,0)
+    pdf.set_fill_color(220, 230, 242)  # Azul claro
+    pdf.set_text_color(0, 0, 0)
     pdf.cell(0, 7, 'ASSINATURAS:', 0, 1, 'L', True)
-    pdf.ln(10)
+    pdf.ln(12)  # Espaço antes das linhas
 
-    largura_linha = 60  # menor!
-    distancia_entre = 45
-    largura_total = (2 * largura_linha) + distancia_entre
-    x_inicio = (pdf.w - largura_total) / 2
-
+    # Linhas para assinatura (centralizadas)
+    pagina_largura = pdf.w - 2 * pdf.l_margin
+    dist_centro = 70  # distância do centro para cada assinatura
+    largura_linha = 70
     y_assin = pdf.get_y()
     pdf.set_draw_color(70, 70, 70)
-    # Linha do Responsável Técnico
-    pdf.line(x_inicio, y_assin, x_inicio + largura_linha, y_assin)
-    # Linha da Fiscalização
-    pdf.line(x_inicio + largura_linha + distancia_entre, y_assin,
-             x_inicio + 2 * largura_linha + distancia_entre, y_assin)
 
-    espaco_vertical = 3
-    pdf.set_font('Arial', '', 11)
-    # Responsável Técnico - centralizado abaixo da linha
-    pdf.set_xy(x_inicio, y_assin + espaco_vertical)
+    # Responsável Técnico (esquerda)
+    x_resp = pagina_largura / 2 - dist_centro - largura_linha / 2 + pdf.l_margin
+    pdf.line(x_resp, y_assin, x_resp + largura_linha, y_assin)
+
+    # Fiscalização (direita)
+    x_fisc = pagina_largura / 2 + dist_centro - largura_linha / 2 + pdf.l_margin
+    pdf.line(x_fisc, y_assin, x_fisc + largura_linha, y_assin)
+    pdf.ln(2)
+
+    # Títulos e nomes centralizados abaixo das linhas
+    pdf.set_font('Arial', '', 10)
+    pdf.set_xy(x_resp, y_assin + 2)
     pdf.cell(largura_linha, 7, "Responsável Técnico:", 0, 2, 'C')
     pdf.cell(largura_linha, 7, f"Nome: {responsavel}", 0, 0, 'C')
 
-    # Fiscalização - centralizado abaixo da linha
-    pdf.set_xy(x_inicio + largura_linha + distancia_entre, y_assin + espaco_vertical)
+    pdf.set_xy(x_fisc, y_assin + 2)
     pdf.cell(largura_linha, 7, "Fiscalização:", 0, 2, 'C')
     pdf.cell(largura_linha, 7, f"Nome: {fiscal}", 0, 0, 'C')
+
     pdf.ln(20)
 
     # --- Fotos (cada uma em nova página) ---
