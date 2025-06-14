@@ -558,15 +558,39 @@ if not st.session_state.logged_in:
             st.warning("Por favor, preencha todos os campos.")
     st.stop()
 
-# --- MENU LATERAL ---
-if st.session_state.logged_in:
-    st.sidebar.title(f"Bem-vindo, {st.session_state.username}!")
-    st.sidebar.button("Sair", on_click=lambda: st.session_state.clear(), key="logout_button")
+# --- MENU LATERAL E CONTROLE DE NAVEGAÇÃO ---
 
-    menu = ["Diário de Obra"]
-    if st.session_state.role == "admin":
-        menu.append("Gerenciamento de Usuários")
-    choice = st.sidebar.selectbox("Navegar", menu, key="sidebar_menu")
+if 'page' not in st.session_state:
+    st.session_state.page = "Diário de Obra"
+
+st.sidebar.title(f"Bem-vindo, {st.session_state.username}!")
+
+menu_opcoes = ["Diário de Obra", "Holerite (em breve)"]
+
+if st.session_state.role == "admin":
+    menu_opcoes.append("Gerenciamento de Usuários")
+
+menu_opcoes.append("Sair")
+
+escolha = st.sidebar.radio("Menu", menu_opcoes, key="menu_lateral")
+
+if escolha == "Sair":
+    st.session_state.clear()
+    st.experimental_rerun()
+elif escolha == "Diário de Obra":
+    st.session_state.page = "Diário de Obra"
+elif escolha == "Holerite (em breve)":
+    st.session_state.page = "Holerite"
+elif escolha == "Gerenciamento de Usuários":
+    st.session_state.page = "Gerenciamento de Usuários"
+
+if st.session_state.page == "Diário de Obra":
+    render_diario_obra_page()
+elif st.session_state.page == "Holerite":
+    st.title("Holerite")
+    st.warning("Funcionalidade em desenvolvimento... Em breve disponível.")
+elif st.session_state.page == "Gerenciamento de Usuários":
+    render_user_management_page()
 
     def render_diario_obra_page():
         @st.cache_data(ttl=3600)
