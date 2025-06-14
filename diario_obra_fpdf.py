@@ -96,32 +96,36 @@ def gerar_pdf_fpfd(dados_obra, colaboradores, maquinas, servicos, intercorrencia
     pdf.multi_cell(0, 7, intercorrencias.strip() if intercorrencias.strip() else "Sem intercorrências.", 0, 1)
     pdf.ln(2)
 
-    # --- Assinaturas (layout com faixa azul institucional) ---
-    y_assin = pdf.get_y() + 10  # margem superior antes das assinaturas
+# --- Assinaturas (no formato de Intercorrências, linha em cima, texto embaixo) ---
+pdf.set_font('Arial', 'B', 11)
+pdf.set_fill_color(220, 230, 242)  # Azul claro
+pdf.set_text_color(0,0,0)
+pdf.cell(0, 7, 'ASSINATURAS:', 0, 1, 'L', True)
+pdf.ln(12)  # Espaço antes das linhas
 
-    # --- Assinaturas (no formato de Intercorrências) ---
-    pdf.set_font('Arial', 'B', 11)
-    pdf.set_fill_color(220, 230, 242)  # Azul claro
-    pdf.set_text_color(0,0,0)
-    pdf.cell(0, 7, 'ASSINATURAS:', 0, 1, 'L', True)
-    pdf.set_font('Arial', '', 10)
-    pdf.multi_cell(0, 7, 'O responsável técnico e o fiscal da obra devem assinar abaixo para validar o relatório.', 0, 1)
-    pdf.ln(7)
+# Linhas para assinatura
+y_assin = pdf.get_y()
+pdf.set_draw_color(70, 70, 70)
+# Responsável Técnico
+x_resp = 50
+x_fisc = 140
+largura_linha = 70
+pdf.line(x_resp, y_assin, x_resp + largura_linha, y_assin)
+# Fiscalização
+pdf.line(x_fisc, y_assin, x_fisc + largura_linha, y_assin)
+pdf.ln(5)  # Espaço entre linha e texto
 
-    # --- Campos para assinatura (sem fundo) ---
-    y_assin = pdf.get_y()
-    pdf.set_font('Arial', '', 10)
-    # Responsável Técnico
-    pdf.set_xy(30, y_assin)
-    pdf.cell(60, 8, 'Responsável Técnico:', 0, 2, 'L')
-    pdf.cell(60, 8, f'Nome: {responsavel}', 0, 2, 'L')
-    pdf.line(35, y_assin + 15, 90, y_assin + 15)
-    # Fiscalização
-    pdf.set_xy(120, y_assin)
-    pdf.cell(60, 8, 'Fiscalização:', 0, 2, 'L')
-    pdf.cell(60, 8, f'Nome: {fiscal}', 0, 2, 'L')
-    pdf.line(125, y_assin + 15, 180, y_assin + 15)
-    pdf.ln(25)
+# Títulos e nomes centralizados abaixo das linhas
+pdf.set_font('Arial', '', 10)
+pdf.set_xy(x_resp, y_assin + 5)
+pdf.cell(largura_linha, 7, "Responsável Técnico:", 0, 2, 'C')
+pdf.cell(largura_linha, 7, f"Nome: {responsavel}", 0, 0, 'C')
+
+pdf.set_xy(x_fisc, y_assin + 5)
+pdf.cell(largura_linha, 7, "Fiscalização:", 0, 2, 'C')
+pdf.cell(largura_linha, 7, f"Nome: {fiscal}", 0, 0, 'C')
+
+pdf.ln(20)
 
     # --- Fotos (cada uma em nova página) ---
     if fotos_paths:
