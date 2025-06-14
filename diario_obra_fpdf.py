@@ -103,23 +103,34 @@ def gerar_pdf_fpfd(dados_obra, colaboradores, maquinas, servicos, intercorrencia
     pdf.cell(0, 7, 'ASSINATURAS:', 0, 1, 'L', True)
     pdf.ln(15)  # Espaço antes das linhas
 
-    # Linhas para assinatura
+    # --- Assinaturas ---
+    pdf.set_font('Arial', 'B', 11)
+    pdf.set_fill_color(220, 230, 242)  # Azul claro
+    pdf.set_text_color(0,0,0)
+    pdf.cell(0, 7, 'ASSINATURAS:', 0, 1, 'L', True)
+    pdf.ln(10)  # Espaço antes das linhas
+
+    largura_linha = 70
+    margem_lateral = 35
+    espaco_central = 40
+
+    x_resp = margem_lateral
+    x_fisc = pdf.w / 2 + espaco_central
+
     y_assin = pdf.get_y()
     pdf.set_draw_color(70, 70, 70)
-    x_resp = 50
-    x_fisc = 140
-    largura_linha = 70
     pdf.line(x_resp, y_assin, x_resp + largura_linha, y_assin)
     pdf.line(x_fisc, y_assin, x_fisc + largura_linha, y_assin)
-    pdf.ln(12)
 
-    # Nomes centralizados **abaixo** das linhas
+    espaco_vertical = 2  # <--- Reduza esse valor para diminuir o espaço!
+
+    # Nomes centralizados abaixo das linhas
     pdf.set_font('Arial', '', 10)
-    pdf.set_xy(x_resp, y_assin + 7)
+    pdf.set_xy(x_resp, y_assin + espaco_vertical)
     pdf.cell(largura_linha, 6, "Responsável Técnico:", 0, 2, 'C')
     pdf.cell(largura_linha, 6, f"Nome: {responsavel}", 0, 0, 'C')
 
-    pdf.set_xy(x_fisc, y_assin + 7)
+    pdf.set_xy(x_fisc, y_assin + espaco_vertical)
     pdf.cell(largura_linha, 6, "Fiscalização:", 0, 2, 'C')
     pdf.cell(largura_linha, 6, f"Nome: {fiscal}", 0, 0, 'C')
 
