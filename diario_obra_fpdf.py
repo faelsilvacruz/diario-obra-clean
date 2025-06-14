@@ -96,7 +96,10 @@ def gerar_pdf_fpfd(dados_obra, colaboradores, maquinas, servicos, intercorrencia
     pdf.multi_cell(0, 7, intercorrencias.strip() if intercorrencias.strip() else "Sem intercorrências.", 0, 1)
     pdf.ln(2)
 
-    # --- Assinaturas ---
+    # --- Assinaturas (layout com faixa azul institucional) ---
+    y_assin = pdf.get_y() + 10  # margem superior antes das assinaturas
+
+    # Faixa azul institucional atrás das assinaturas
     pdf.set_fill_color(15, 42, 77)
     pdf.rect(10, y_assin, 190, 28, 'F')
 
@@ -121,6 +124,7 @@ def gerar_pdf_fpfd(dados_obra, colaboradores, maquinas, servicos, intercorrencia
     pdf.set_text_color(0, 0, 0)
     pdf.set_line_width(0.2)
     pdf.ln(30)
+
 
     # --- Fotos (cada uma em nova página) ---
     if fotos_paths:
