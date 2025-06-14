@@ -489,75 +489,88 @@ init_db()
 
 # --- TELA DE LOGIN ---
 # --- TELA DE LOGIN, FORA DE QUALQUER FUNÇÃO ---
-if not st.session_state.logged_in:
-    st.markdown(f"""
+import streamlit as st
+import sqlite3
+import hashlib
+
+# Funções de hash
+def make_hashes(password):
+    return hashlib.sha256(str.encode(password)).hexdigest()
+
+def check_hashes(password, hashed_text):
+    return make_hashes(password) == hashed_text
+
+# Banco de dados
+conn = sqlite3.connect('users.db')
+c = conn.cursor()
+
+def login_user(username, password):
+    c.execute('SELECT * FROM userstable WHERE username =? AND password = ?', (username, password))
+    data = c.fetchall()
+    return data
+
+# CSS customizado
+st.markdown(
+    """
     <style>
-        .login-container {{
-            max-width: 400px;
-            margin: 0 auto;
-            padding: 2rem;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            border-radius: 10px;
-            background: white;
-        }}
-        .logo {{
-            text-align: center;
-            margin-bottom: 1.5rem;
-        }}
-        .stButton>button {{
-            width: 100%;
-            background: #0F2A4D;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            font-size: 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background 0.3s ease;
-        }}
-        .stButton>button:hover {{
-            background: #0A1C36;
-        }}
-        .stTextInput>div>div>input {{
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            padding: 10px;
-            width: 100%;
-            box-sizing: border-box;
-        }}
-        .stTextInput label {{
-            font-weight: bold;
-            color: #0F2A4D;
-        }}
+    .stApp {
+        background-color: #0F2A4D;
+    }
+    .titulo-principal {
+        text-align: center;
+        color: white;
+        font-size: 30px;
+        margin-top: 40px;
+        margin-bottom: 30px;
+        font-weight: bold;
+    }
+    .login-inputs {
+        max-width: 400px;
+        margin: auto;
+        background: transparent;
+    }
+    .logo-rodape {
+        margin-top: 50px;
+        text-align: center;
+    }
+    .logo-rodape img {
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+        max-width: 250px;
+        height: auto;
+        width: 100%;
+    }
     </style>
-    <div class="login-container">
-        <div class="logo">
-            <img src="data:image/jpeg;base64,{get_img_as_base64(LOGO_LOGIN_PATH)}" width="200">
-        </div>
-        <h3 style="text-align: center; color: #0F2A4D;">Acesso ao Sistema</h3>
-    </div>
-    """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True
+)
 
-    with st.form("login_form"):
-        username_input = st.text_input("Usuário", placeholder="Digite seu nome de usuário", key="login_username")
-        password_input = st.text_input("Senha", type="password", key="login_password")
-        submitted = st.form_submit_button("Entrar")
+def main():
+    st.markdown('<div class="titulo-principal">Acesso ao Diário de Obra</div>', unsafe_allow_html=True)
 
-    if submitted:
-        if username_input and password_input:
-            hashed_password = make_hashes(password_input)
-            authenticated, role = login_user(username_input, hashed_password)
-            if authenticated:
-                st.session_state["logged_in"] = True
-                st.session_state["username"] = username_input
-                st.session_state["role"] = role
-                st.rerun()
+    with st.container():
+        st.markdown('<div class="login-inputs">', unsafe_allow_html=True)
+
+        username = st.text_input('Usuário')
+        password = st.text_input('Senha', type='password')
+
+        if st.button('Entrar'):
+            hashed_pswd = make_hashes(password)
+            result = login_user(username, hashed_pswd)
+            if result:
+                st.success(f'Bem-vindo, {username}! Login realizado com sucesso.')
+                st.info('Aqui você carregaria o restante do app...')
             else:
-                st.error("Credenciais inválidas. Verifique seu usuário e senha.")
-        else:
-            st.warning("Por favor, preencha todos os campos.")
-    st.stop()
+                st.error('Usuário ou senha inválidos.')
 
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="logo-rodape">', unsafe_allow_html=True)
+    st.image('logo_rdv.png', use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+if __name__ == '__main__':
+    main()
 # --- MENU LATERAL E CONTROLE DE NAVEGAÇÃO ---
 
 if 'page' not in st.session_state:
