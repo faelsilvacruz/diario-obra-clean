@@ -96,28 +96,34 @@ def gerar_pdf_fpfd(dados_obra, colaboradores, maquinas, servicos, intercorrencia
     pdf.multi_cell(0, 7, intercorrencias.strip() if intercorrencias.strip() else "Sem intercorrências.", 0, 1)
     pdf.ln(2)
 
-    # --- ASSINATURAS (CENTRALIZADAS) ---
+    # --- ASSINATURAS (CENTRALIZADAS E ALINHADAS COM OS NOMES) ---
     pdf.set_font('Arial', 'B', 11)
     pdf.set_fill_color(220, 230, 242)
     pdf.set_text_color(0,0,0)
     pdf.cell(0, 7, 'ASSINATURAS:', 0, 1, 'L', True)
     pdf.ln(10)
-    largura_linha = 90
-    distancia_entre = 30
+
+    largura_linha = 60  # menor!
+    distancia_entre = 45
     largura_total = (2 * largura_linha) + distancia_entre
     x_inicio = (pdf.w - largura_total) / 2
 
     y_assin = pdf.get_y()
     pdf.set_draw_color(70, 70, 70)
+    # Linha do Responsável Técnico
     pdf.line(x_inicio, y_assin, x_inicio + largura_linha, y_assin)
-    pdf.line(x_inicio + largura_linha + distancia_entre, y_assin, x_inicio + 2 * largura_linha + distancia_entre, y_assin)
+    # Linha da Fiscalização
+    pdf.line(x_inicio + largura_linha + distancia_entre, y_assin,
+             x_inicio + 2 * largura_linha + distancia_entre, y_assin)
 
-    espaco_vertical = 2
+    espaco_vertical = 3
     pdf.set_font('Arial', '', 11)
+    # Responsável Técnico - centralizado abaixo da linha
     pdf.set_xy(x_inicio, y_assin + espaco_vertical)
     pdf.cell(largura_linha, 7, "Responsável Técnico:", 0, 2, 'C')
     pdf.cell(largura_linha, 7, f"Nome: {responsavel}", 0, 0, 'C')
 
+    # Fiscalização - centralizado abaixo da linha
     pdf.set_xy(x_inicio + largura_linha + distancia_entre, y_assin + espaco_vertical)
     pdf.cell(largura_linha, 7, "Fiscalização:", 0, 2, 'C')
     pdf.cell(largura_linha, 7, f"Nome: {fiscal}", 0, 0, 'C')
