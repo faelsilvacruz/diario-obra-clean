@@ -6,66 +6,77 @@ import os
 
 class DiarioObraPDF(FPDF):
     def header(self):
-        # ... seu código de header ...
-        self.set_fill_color(15, 42, 77)  # azul institucional
-        self.rect(0, 0, self.w, 35, 'F')
+        # Fundo azul institucional para o topo
+        self.set_fill_color(15, 42, 77)  # azul institucional RDV
+        self.rect(0, 0, self.w, 45, 'F')
+
+        # Logo (ajuste y/x se necessário para centralizar na caixa)
         logo_path = "LOGO_RDV_AZUL.png"
-        logo_h = 13
-        bloco_h = 35
-        y_logo = bloco_h / 2 - logo_h / 2
         if os.path.exists(logo_path):
-            self.image(logo_path, 12, y_logo, 19, logo_h)
-        self.set_xy(0, 13)
-        self.set_font('Arial', 'B', 18)
+            self.image(logo_path, 18, 8, 32, 22)  # x, y, w, h (ajuste conforme sua logo)
+
+        # Título centralizado, bem no meio do cabeçalho azul
+        self.set_xy(0, 15)
+        self.set_font('Arial', 'B', 22)
         self.set_text_color(255, 255, 255)
-        self.cell(self.w, 10, 'DIÁRIO DE OBRA', border=0, ln=1, align='C')
-        self.ln(2)
+        self.cell(self.w, 10, 'DIÁRIO DE OBRA', border=0, ln=2, align='C')
+        self.set_font('Arial', '', 13)
+        # Caso queira remover, só comentar a próxima linha
+        # self.cell(self.w, 8, 'RDV ENGENHARIA', border=0, ln=1, align='C')
+        self.ln(7)
+        self.set_text_color(0, 0, 0)
 
     def footer(self):
-        # ... footer ...
-        pass
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.set_text_color(130, 130, 130)
+        self.cell(0, 6, f'Gerado em: {datetime.now().strftime("%d/%m/%Y %H:%M")} - Página {self.page_no()}', 0, 0, 'R')
 
-def gerar_pdf_fpfd(...):
+
+def gerar_pdf_fpfd(
+    dados_obra, colaboradores, maquinas, servicos,
+    intercorrencias, responsavel, fiscal, clima, fotos_paths=None
+):
     pdf = DiarioObraPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=20)
-    pdf.ln(12)  # <-- Adicione esse espaçamento ANTES de começar os campos da obra!
+    pdf.ln(8)
 
-    # agora segue com os campos normalmente
-    pdf.set_font('Arial', 'B', 11)
-    pdf.set_text_color(0,0,0)
-    campos = [("OBRA:", dados_obra.get("obra", "")),
-              ("LOCAL:", dados_obra.get("local", "")),
-              ("DATA:", dados_obra.get("data", "")),
-              ("CONTRATO:", dados_obra.get("contrato", "")),
-              ("CLIMA:", clima)]
+    # --- Dados da Obra ---
+    pdf.set_font('Arial', 'B', 12)
+    pdf.set_text_color(0, 0, 0)
+    campos = [
+        ("OBRA:", dados_obra.get("obra", "")),
+        ("LOCAL:", dados_obra.get("local", "")),
+        ("DATA:", dados_obra.get("data", "")),
+        ("CONTRATO:", dados_obra.get("contrato", "")),
+        ("CLIMA:", clima)
+    ]
     for rotulo, valor in campos:
         pdf.cell(25, 8, rotulo, 0, 0)
-        pdf.set_font('Arial', '', 11)
+        pdf.set_font('Arial', '', 12)
         pdf.cell(80, 8, valor, 0, 1)
-        pdf.set_font('Arial', 'B', 11)
+        pdf.set_font('Arial', 'B', 12)
 
     # --- Serviços Executados ---
     pdf.ln(3)
     pdf.set_fill_color(220, 230, 242)
-    pdf.set_font('Arial', 'B', 11)
-    pdf.cell(0, 7, 'SERVIÇOS EXECUTADOS:', 0, 1, 'L', True)
-    pdf.set_font('Arial', '', 10)
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 8, 'SERVIÇOS EXECUTADOS:', 0, 1, 'L', True)
+    pdf.set_font('Arial', '', 11)
     pdf.multi_cell(0, 7, servicos.strip() if servicos.strip() else "Nenhum serviço informado.", 0, 1)
-
+    
     # --- Máquinas e Equipamentos ---
     pdf.ln(2)
-    pdf.set_font('Arial', 'B', 11)
-    pdf.cell(0, 7, 'MÁQUINAS/EQUIPAMENTOS:', 0, 1, 'L', True)
-    pdf.set_font('Arial', '', 10)
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 8, 'MÁQUINAS/EQUIPAMENTOS:', 0, 1, 'L', True)
+    pdf.set_font('Arial', '', 11)
     pdf.multi_cell(0, 7, maquinas.strip() if maquinas.strip() else "Nenhuma máquina/equipamento informado.", 0, 1)
 
     # --- Efetivo de Pessoal ---
     pdf.ln(2)
-    pdf.set_font('Arial', 'B', 11)
-    pdf.cell(0, 7, 'EFETIVO DE PESSOAL', 0, 1, 'L', True)
-
-    # Cabeçalho da tabela
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 8, 'EFETIVO DE PESSOAL', 0, 1, 'L', True)
     pdf.set_fill_color(15, 42, 77)
     pdf.set_text_color(255, 255, 255)
     pdf.set_font('Arial', 'B', 10)
@@ -74,8 +85,7 @@ def gerar_pdf_fpfd(...):
     pdf.cell(30, 8, 'ENTRADA', 1, 0, 'C', True)
     pdf.cell(30, 8, 'SAÍDA', 1, 1, 'C', True)
     pdf.set_text_color(0, 0, 0)
-    pdf.set_font('Arial', '', 9)
-    # Dados da tabela
+    pdf.set_font('Arial', '', 10)
     for row in colaboradores:
         pdf.cell(70, 8, row[0], 1)
         pdf.cell(40, 8, row[1], 1)
@@ -85,47 +95,43 @@ def gerar_pdf_fpfd(...):
     pdf.ln(2)
 
     # --- Intercorrências ---
-    pdf.set_font('Arial', 'B', 11)
+    pdf.set_font('Arial', 'B', 12)
     pdf.set_fill_color(220, 230, 242)
-    pdf.cell(0, 7, 'INTERCORRÊNCIAS:', 0, 1, 'L', True)
-    pdf.set_font('Arial', '', 10)
+    pdf.cell(0, 8, 'INTERCORRÊNCIAS:', 0, 1, 'L', True)
+    pdf.set_font('Arial', '', 11)
     pdf.multi_cell(0, 7, intercorrencias.strip() if intercorrencias.strip() else "Sem intercorrências.", 0, 1)
     pdf.ln(2)
 
-    # --- Assinaturas ---
-    pdf.set_font('Arial', 'B', 11)
-    pdf.set_fill_color(220, 230, 242)  # Azul claro
+    # --- Assinaturas (com linha centralizada e nomes centralizados) ---
+    pdf.set_font('Arial', 'B', 12)
+    pdf.set_fill_color(220, 230, 242)
     pdf.set_text_color(0, 0, 0)
-    pdf.cell(0, 7, 'ASSINATURAS:', 0, 1, 'L', True)
-    pdf.ln(12)  # Espaço antes das linhas
+    pdf.cell(0, 8, 'ASSINATURAS:', 0, 1, 'L', True)
+    pdf.ln(6)
 
-    # Linhas para assinatura (centralizadas)
+    largura_linha = 90
+    espacamento = 40  # espaço entre as duas assinaturas
     pagina_largura = pdf.w - 2 * pdf.l_margin
-    dist_centro = 70  # distância do centro para cada assinatura
-    largura_linha = 70
+    x_resp = pdf.l_margin + (pagina_largura // 4) - (largura_linha // 2)
+    x_fisc = pdf.l_margin + (3 * pagina_largura // 4) - (largura_linha // 2)
     y_assin = pdf.get_y()
-    pdf.set_draw_color(70, 70, 70)
 
-    # Responsável Técnico (esquerda)
-    x_resp = pagina_largura / 2 - dist_centro - largura_linha / 2 + pdf.l_margin
+    # Linhas de assinatura
+    pdf.set_draw_color(80, 80, 80)
     pdf.line(x_resp, y_assin, x_resp + largura_linha, y_assin)
-
-    # Fiscalização (direita)
-    x_fisc = pagina_largura / 2 + dist_centro - largura_linha / 2 + pdf.l_margin
     pdf.line(x_fisc, y_assin, x_fisc + largura_linha, y_assin)
-    pdf.ln(2)
 
-    # Títulos e nomes centralizados abaixo das linhas
-    pdf.set_font('Arial', '', 10)
-    pdf.set_xy(x_resp, y_assin + 2)
+    pdf.set_font('Arial', '', 11)
+    pdf.ln(2)
+    # Responsável Técnico
+    pdf.set_xy(x_resp, y_assin + 5)
     pdf.cell(largura_linha, 7, "Responsável Técnico:", 0, 2, 'C')
     pdf.cell(largura_linha, 7, f"Nome: {responsavel}", 0, 0, 'C')
-
-    pdf.set_xy(x_fisc, y_assin + 2)
+    # Fiscalização
+    pdf.set_xy(x_fisc, y_assin + 5)
     pdf.cell(largura_linha, 7, "Fiscalização:", 0, 2, 'C')
     pdf.cell(largura_linha, 7, f"Nome: {fiscal}", 0, 0, 'C')
-
-    pdf.ln(20)
+    pdf.ln(22)
 
     # --- Fotos (cada uma em nova página) ---
     if fotos_paths:
