@@ -106,14 +106,12 @@ pdf.ln(12)  # Espaço antes das linhas
 # Linhas para assinatura
 y_assin = pdf.get_y()
 pdf.set_draw_color(70, 70, 70)
-# Responsável Técnico
 x_resp = 50
 x_fisc = 140
 largura_linha = 70
 pdf.line(x_resp, y_assin, x_resp + largura_linha, y_assin)
-# Fiscalização
 pdf.line(x_fisc, y_assin, x_fisc + largura_linha, y_assin)
-pdf.ln(5)  # Espaço entre linha e texto
+pdf.ln(5)
 
 # Títulos e nomes centralizados abaixo das linhas
 pdf.set_font('Arial', '', 10)
@@ -126,7 +124,6 @@ pdf.cell(largura_linha, 7, "Fiscalização:", 0, 2, 'C')
 pdf.cell(largura_linha, 7, f"Nome: {fiscal}", 0, 0, 'C')
 
 pdf.ln(20)
-
     # --- Fotos (cada uma em nova página) ---
     if fotos_paths:
         for path in fotos_paths:
