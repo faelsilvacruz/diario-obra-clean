@@ -99,32 +99,29 @@ def gerar_pdf_fpfd(dados_obra, colaboradores, maquinas, servicos, intercorrencia
     # --- Assinaturas (layout com faixa azul institucional) ---
     y_assin = pdf.get_y() + 10  # margem superior antes das assinaturas
 
-    # Faixa azul institucional atrás das assinaturas
-    pdf.set_fill_color(15, 42, 77)
-    pdf.rect(10, y_assin, 190, 28, 'F')
-
-    pdf.set_text_color(255, 255, 255)
+    # --- Assinaturas (no formato de Intercorrências) ---
     pdf.set_font('Arial', 'B', 11)
-    pdf.set_xy(20, y_assin + 4)
-    pdf.cell(80, 8, 'Responsável Técnico:', 0, 0, 'L', 0)
-    pdf.cell(80, 8, 'Fiscalização:', 0, 1, 'L', 0)
-
+    pdf.set_fill_color(220, 230, 242)  # Azul claro
+    pdf.set_text_color(0,0,0)
+    pdf.cell(0, 7, 'ASSINATURAS:', 0, 1, 'L', True)
     pdf.set_font('Arial', '', 10)
-    pdf.set_xy(20, y_assin + 12)
-    pdf.cell(80, 8, f'Nome: {responsavel}', 0, 0, 'L', 0)
-    pdf.cell(80, 8, f'Nome: {fiscal}', 0, 1, 'L', 0)
+    pdf.multi_cell(0, 7, 'O responsável técnico e o fiscal da obra devem assinar abaixo para validar o relatório.', 0, 1)
+    pdf.ln(7)
 
-    # Linhas para assinatura
-    pdf.set_draw_color(255,255,255)
-    pdf.set_line_width(0.6)
-    pdf.line(25, y_assin + 23, 90, y_assin + 23)      # Responsável Técnico
-    pdf.line(115, y_assin + 23, 180, y_assin + 23)    # Fiscalização
-
-    # Restaura a cor preta para próximos elementos
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_line_width(0.2)
-    pdf.ln(30)
-
+    # --- Campos para assinatura (sem fundo) ---
+    y_assin = pdf.get_y()
+    pdf.set_font('Arial', '', 10)
+    # Responsável Técnico
+    pdf.set_xy(30, y_assin)
+    pdf.cell(60, 8, 'Responsável Técnico:', 0, 2, 'L')
+    pdf.cell(60, 8, f'Nome: {responsavel}', 0, 2, 'L')
+    pdf.line(35, y_assin + 15, 90, y_assin + 15)
+    # Fiscalização
+    pdf.set_xy(120, y_assin)
+    pdf.cell(60, 8, 'Fiscalização:', 0, 2, 'L')
+    pdf.cell(60, 8, f'Nome: {fiscal}', 0, 2, 'L')
+    pdf.line(125, y_assin + 15, 180, y_assin + 15)
+    pdf.ln(25)
 
     # --- Fotos (cada uma em nova página) ---
     if fotos_paths:
