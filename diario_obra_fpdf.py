@@ -96,40 +96,41 @@ def gerar_pdf_fpfd(dados_obra, colaboradores, maquinas, servicos, intercorrencia
     pdf.multi_cell(0, 7, intercorrencias.strip() if intercorrencias.strip() else "Sem intercorrências.", 0, 1)
     pdf.ln(2)
 
-    # --- Assinaturas ---
-    pdf.set_font('Arial', 'B', 11)
-    pdf.set_fill_color(220, 230, 242)
-    pdf.set_text_color(0,0,0)
-    pdf.cell(0, 7, 'ASSINATURAS:', 0, 1, 'L', True)
-    pdf.ln(15)  # Espaço antes das linhas
+# --- Assinaturas (centralizadas, linhas e textos) ---
+pdf.set_font('Arial', 'B', 11)
+pdf.set_fill_color(220, 230, 242)
+pdf.set_text_color(0,0,0)
+pdf.cell(0, 7, 'ASSINATURAS:', 0, 1, 'L', True)
+pdf.ln(15)
 
-    # Posição e dimensões dinâmicas
-    largura_total = pdf.w - 40  # 20 de margem de cada lado
-    largura_linha = 90
-    distancia_entre = 70
-    x_inicio = (pdf.w - (2 * largura_linha + distancia_entre)) / 2
-    y_assin = pdf.get_y()
-    pdf.set_draw_color(70, 70, 70)
+# Centralização inteligente
+margem_lateral = 22
+largura_linha = 80
+distancia_entre = 50
+largura_total = (2 * largura_linha) + distancia_entre
+x_inicio = (pdf.w - largura_total) / 2
 
-    # Linhas de assinatura (alinhadas)
-    pdf.line(x_inicio, y_assin, x_inicio + largura_linha, y_assin)
-    pdf.line(x_inicio + largura_linha + distancia_entre, y_assin, x_inicio + 2 * largura_linha + distancia_entre, y_assin)
+y_assin = pdf.get_y()
+pdf.set_draw_color(70, 70, 70)
 
-    espaco_vertical = 3
+# Linhas das assinaturas
+pdf.line(x_inicio, y_assin, x_inicio + largura_linha, y_assin)  # Responsável Técnico
+pdf.line(x_inicio + largura_linha + distancia_entre, y_assin, x_inicio + 2 * largura_linha + distancia_entre, y_assin)  # Fiscalização
 
-    # Responsável Técnico (esquerda)
-    pdf.set_xy(x_inicio, y_assin + espaco_vertical)
-    pdf.set_font('Arial', '', 11)
-    pdf.cell(largura_linha, 7, "Responsável Técnico:", 0, 2, 'C')
-    pdf.cell(largura_linha, 7, f"Nome: {responsavel}", 0, 0, 'C')
+espaco_vertical = 3
+pdf.set_font('Arial', '', 11)
 
-    # Fiscalização (direita)
-    pdf.set_xy(x_inicio + largura_linha + distancia_entre, y_assin + espaco_vertical)
-    pdf.cell(largura_linha, 7, "Fiscalização:", 0, 2, 'C')
-    pdf.cell(largura_linha, 7, f"Nome: {fiscal}", 0, 0, 'C')
+# Responsável Técnico
+pdf.set_xy(x_inicio, y_assin + espaco_vertical)
+pdf.cell(largura_linha, 7, "Responsável Técnico:", 0, 2, 'C')
+pdf.cell(largura_linha, 7, f"Nome: {responsavel}", 0, 0, 'C')
 
-    pdf.ln(20)
+# Fiscalização
+pdf.set_xy(x_inicio + largura_linha + distancia_entre, y_assin + espaco_vertical)
+pdf.cell(largura_linha, 7, "Fiscalização:", 0, 2, 'C')
+pdf.cell(largura_linha, 7, f"Nome: {fiscal}", 0, 0, 'C')
 
+pdf.ln(20)
     # --- Fotos (cada uma em nova página) ---
     if fotos_paths:
         for path in fotos_paths:
