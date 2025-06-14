@@ -10,14 +10,10 @@ class DiarioObraPDF(FPDF):
         self.set_fill_color(15, 42, 77)  # azul institucional
         self.rect(0, 0, self.w, 35, 'F')
 
-        # Fundo branco para a logo (ou azul mais escuro, se preferir)
-        self.set_fill_color(255,255,255)
-        self.rect(12, 8, 25, 19, 'F')  # caixa branca atrás da logo
-
         # Logo (ajuste y/x se necessário para centralizar na caixa)
         logo_path = "LOGO_RDV_AZUL.png"
         if os.path.exists(logo_path):
-            self.image(logo_path, 12, 8, 25, 19)  # ocupa a caixa branca
+            self.image(logo_path, 12, 8, 19, 13)  # ocupa a caixa branca
 
         # Título centralizado
         self.set_xy(0, 10)
