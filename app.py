@@ -805,7 +805,13 @@ elif st.session_state.page == "Gerenciamento de Usuários":
         df_users = pd.DataFrame(user_data, columns=['Username', 'Password Hash', 'Role'])
         st.dataframe(df_users, use_container_width=True)
 
-    if choice == "Diário de Obra":
-        render_diario_obra_page()
-    elif choice == "Gerenciamento de Usuários":
-        render_user_management_page()
+# Renderiza a página selecionada
+if st.session_state.page == "Diário de Obra":
+    render_diario_obra_page()
+
+elif st.session_state.page == "Holerite":
+    st.title("Holerite")
+    st.warning("Funcionalidade em desenvolvimento... Em breve disponível.")
+
+elif st.session_state.page == "Gerenciamento de Usuários":
+    render_user_management_page()
