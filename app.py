@@ -488,6 +488,14 @@ if 'num_colabs_slider' not in st.session_state:
 init_db()
 
 # --- TELA DE LOGIN ---
+
+def render_diario_obra_page():
+    # TODO: Colar aqui o conteúdo inteiro da função original
+
+def render_user_management_page():
+    # TODO: Colar aqui o conteúdo inteiro da função original
+
+
 # --- TELA DE LOGIN, FORA DE QUALQUER FUNÇÃO ---
 import streamlit as st
 import sqlite3
