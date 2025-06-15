@@ -509,102 +509,6 @@ def login_user(username, password):
     data = c.fetchall()
     return data
 
-# CSS customizado
-st.markdown(
-    """
-    <style>
-    .stApp {
-        background-color: #0F2A4D;
-    }
-    .titulo-principal {
-        text-align: center;
-        color: white;
-        font-size: 30px;
-        margin-top: 40px;
-        margin-bottom: 30px;
-        font-weight: bold;
-    }
-    .login-inputs {
-        max-width: 400px;
-        margin: auto;
-        background: transparent;
-    }
-    .logo-rodape {
-        margin-top: 50px;
-        text-align: center;
-    }
-    .logo-rodape img {
-        display: block;
-        margin-left: auto;
-        margin-right: auto;
-        max-width: 250px;
-        height: auto;
-        width: 100%;
-    }
-    </style>
-    """, unsafe_allow_html=True
-)
-
-def main():
-    st.markdown('<div class="titulo-principal">Acesso ao Diário de Obra</div>', unsafe_allow_html=True)
-
-    with st.container():
-        st.markdown('<div class="login-inputs">', unsafe_allow_html=True)
-
-        username = st.text_input('Usuário')
-        password = st.text_input('Senha', type='password')
-
-        if st.button('Entrar'):
-            hashed_pswd = make_hashes(password)
-            result = login_user(username, hashed_pswd)
-            if result:
-                st.success(f'Bem-vindo, {username}! Login realizado com sucesso.')
-                st.info('Aqui você carregaria o restante do app...')
-            else:
-                st.error('Usuário ou senha inválidos.')
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="logo-rodape">', unsafe_allow_html=True)
-    st.image('logo_rdv.png', use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-if __name__ == '__main__':
-    main()
-# --- MENU LATERAL E CONTROLE DE NAVEGAÇÃO ---
-
-if 'page' not in st.session_state:
-    st.session_state.page = "Diário de Obra"
-
-st.sidebar.title(f"Bem-vindo, {st.session_state.username}!")
-
-menu_opcoes = ["Diário de Obra", "Holerite (em breve)"]
-
-if st.session_state.role == "admin":
-    menu_opcoes.append("Gerenciamento de Usuários")
-
-menu_opcoes.append("Sair")
-
-escolha = st.sidebar.radio("Menu", menu_opcoes, key="menu_lateral")
-
-if escolha == "Sair":
-    st.session_state.clear()
-    st.experimental_rerun()
-elif escolha == "Diário de Obra":
-    st.session_state.page = "Diário de Obra"
-elif escolha == "Holerite (em breve)":
-    st.session_state.page = "Holerite"
-elif escolha == "Gerenciamento de Usuários":
-    st.session_state.page = "Gerenciamento de Usuários"
-
-if st.session_state.page == "Diário de Obra":
-    render_diario_obra_page()
-elif st.session_state.page == "Holerite":
-    st.title("Holerite")
-    st.warning("Funcionalidade em desenvolvimento... Em breve disponível.")
-elif st.session_state.page == "Gerenciamento de Usuários":
-    render_user_management_page()
-
     def render_diario_obra_page():
         @st.cache_data(ttl=3600)
         def carregar_arquivo_csv(nome_arquivo):
@@ -794,6 +698,102 @@ elif st.session_state.page == "Gerenciamento de Usuários":
                         os.remove(temp_icon_path_for_cleanup)
                 except Exception:
                     pass
+
+# CSS customizado
+st.markdown(
+    """
+    <style>
+    .stApp {
+        background-color: #0F2A4D;
+    }
+    .titulo-principal {
+        text-align: center;
+        color: white;
+        font-size: 30px;
+        margin-top: 40px;
+        margin-bottom: 30px;
+        font-weight: bold;
+    }
+    .login-inputs {
+        max-width: 400px;
+        margin: auto;
+        background: transparent;
+    }
+    .logo-rodape {
+        margin-top: 50px;
+        text-align: center;
+    }
+    .logo-rodape img {
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+        max-width: 250px;
+        height: auto;
+        width: 100%;
+    }
+    </style>
+    """, unsafe_allow_html=True
+)
+
+def main():
+    st.markdown('<div class="titulo-principal">Acesso ao Diário de Obra</div>', unsafe_allow_html=True)
+
+    with st.container():
+        st.markdown('<div class="login-inputs">', unsafe_allow_html=True)
+
+        username = st.text_input('Usuário')
+        password = st.text_input('Senha', type='password')
+
+        if st.button('Entrar'):
+            hashed_pswd = make_hashes(password)
+            result = login_user(username, hashed_pswd)
+            if result:
+                st.success(f'Bem-vindo, {username}! Login realizado com sucesso.')
+                st.info('Aqui você carregaria o restante do app...')
+            else:
+                st.error('Usuário ou senha inválidos.')
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="logo-rodape">', unsafe_allow_html=True)
+    st.image('logo_rdv.png', use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+if __name__ == '__main__':
+    main()
+# --- MENU LATERAL E CONTROLE DE NAVEGAÇÃO ---
+
+if 'page' not in st.session_state:
+    st.session_state.page = "Diário de Obra"
+
+st.sidebar.title(f"Bem-vindo, {st.session_state.username}!")
+
+menu_opcoes = ["Diário de Obra", "Holerite (em breve)"]
+
+if st.session_state.role == "admin":
+    menu_opcoes.append("Gerenciamento de Usuários")
+
+menu_opcoes.append("Sair")
+
+escolha = st.sidebar.radio("Menu", menu_opcoes, key="menu_lateral")
+
+if escolha == "Sair":
+    st.session_state.clear()
+    st.experimental_rerun()
+elif escolha == "Diário de Obra":
+    st.session_state.page = "Diário de Obra"
+elif escolha == "Holerite (em breve)":
+    st.session_state.page = "Holerite"
+elif escolha == "Gerenciamento de Usuários":
+    st.session_state.page = "Gerenciamento de Usuários"
+
+if st.session_state.page == "Diário de Obra":
+    render_diario_obra_page()
+elif st.session_state.page == "Holerite":
+    st.title("Holerite")
+    st.warning("Funcionalidade em desenvolvimento... Em breve disponível.")
+elif st.session_state.page == "Gerenciamento de Usuários":
+    render_user_management_page()
 
     def render_user_management_page():
         st.title("Gerenciamento de Usuários")
