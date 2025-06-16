@@ -1,10 +1,7 @@
-
 import os
 import io
 from datetime import datetime
 from fpdf import FPDF
-import streamlit as st
-from PIL import Image as PILImage
 
 LOGO_PDF_PATH = "LOGO_RDV_AZUL.png"
 
@@ -28,36 +25,42 @@ class DiarioObraPDF(FPDF):
         self.set_text_color(130, 130, 130)
         self.cell(0, 6, f'Gerado em: {datetime.now().strftime("%d/%m/%Y %H:%M")} - Página {self.page_no()}', 0, 0, 'R')
 
-def gerar_pdf_fpdf(dados_obra, colaboradores, maquinas, servicos, intercorrencias, responsavel, fiscal, clima, controle_doc, fotos_paths=None):
+def gerar_pdf_fpdf(dados_obra, colaboradores, maquinas, servicos, controle_doc, intercorrencias, responsavel, fiscal, clima, fotos_paths=None):
     pdf = DiarioObraPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=20)
 
+    # --- Dados da Obra ---
     pdf.set_font('Arial', 'B', 11)
     pdf.set_text_color(0, 0, 0)
-    campos = [("OBRA:", dados_obra.get("obra", "")),
-              ("LOCAL:", dados_obra.get("local", "")),
-              ("DATA:", dados_obra.get("data", "")),
-              ("CONTRATO:", dados_obra.get("contrato", "")),
-              ("CLIMA:", clima)]
+    campos = [
+        ("OBRA:", dados_obra.get("obra", "")),
+        ("LOCAL:", dados_obra.get("local", "")),
+        ("DATA:", dados_obra.get("data", "")),
+        ("CONTRATO:", dados_obra.get("contrato", "")),
+        ("CLIMA:", clima)
+    ]
     for rotulo, valor in campos:
         pdf.cell(25, 8, rotulo, 0, 0)
         pdf.set_font('Arial', '', 11)
         pdf.cell(80, 8, valor, 0, 1)
         pdf.set_font('Arial', 'B', 11)
 
+    # --- Serviços Executados ---
     pdf.ln(3)
     pdf.set_fill_color(220, 230, 242)
     pdf.cell(0, 7, 'SERVIÇOS EXECUTADOS:', 0, 1, 'L', True)
     pdf.set_font('Arial', '', 10)
     pdf.multi_cell(0, 7, servicos.strip() if servicos.strip() else "Nenhum serviço informado.", 0, 1)
 
+    # --- Máquinas e Equipamentos ---
     pdf.ln(2)
     pdf.set_font('Arial', 'B', 11)
     pdf.cell(0, 7, 'MÁQUINAS/EQUIPAMENTOS:', 0, 1, 'L', True)
     pdf.set_font('Arial', '', 10)
     pdf.multi_cell(0, 7, maquinas.strip() if maquinas.strip() else "Nenhuma máquina/equipamento informado.", 0, 1)
 
+    # --- Efetivo de Pessoal ---
     pdf.ln(2)
     pdf.set_font('Arial', 'B', 11)
     pdf.cell(0, 7, 'EFETIVO DE PESSOAL', 0, 1, 'L', True)
@@ -78,6 +81,7 @@ def gerar_pdf_fpdf(dados_obra, colaboradores, maquinas, servicos, intercorrencia
         pdf.ln()
     pdf.ln(2)
 
+    # --- Controle de Documentação de Segurança ---
     pdf.set_font('Arial', 'B', 11)
     pdf.set_fill_color(220, 230, 242)
     pdf.cell(0, 7, 'CONTROLE DE DOCUMENTAÇÃO DE SEGURANÇA:', 0, 1, 'L', True)
@@ -85,6 +89,7 @@ def gerar_pdf_fpdf(dados_obra, colaboradores, maquinas, servicos, intercorrencia
     pdf.multi_cell(0, 7, controle_doc.strip() if controle_doc.strip() else "Não informado.", 0, 1)
     pdf.ln(2)
 
+    # --- Intercorrências ---
     pdf.set_font('Arial', 'B', 11)
     pdf.set_fill_color(220, 230, 242)
     pdf.cell(0, 7, 'INTERCORRÊNCIAS:', 0, 1, 'L', True)
@@ -92,6 +97,7 @@ def gerar_pdf_fpdf(dados_obra, colaboradores, maquinas, servicos, intercorrencia
     pdf.multi_cell(0, 7, intercorrencias.strip() if intercorrencias.strip() else "Sem intercorrências.", 0, 1)
     pdf.ln(2)
 
+    # --- Assinaturas ---
     pdf.set_font('Arial', 'B', 11)
     pdf.set_fill_color(220, 230, 242)
     pdf.cell(0, 7, 'ASSINATURAS:', 0, 1, 'L', True)
@@ -117,6 +123,7 @@ def gerar_pdf_fpdf(dados_obra, colaboradores, maquinas, servicos, intercorrencia
     pdf.cell(largura_linha, 7, f"Nome: {fiscal}", 0, 0, 'C')
     pdf.ln(20)
 
+    # --- Fotos (cada uma em nova página) ---
     if fotos_paths:
         for path in fotos_paths:
             if os.path.exists(path):
@@ -125,5 +132,6 @@ def gerar_pdf_fpdf(dados_obra, colaboradores, maquinas, servicos, intercorrencia
                 pdf.cell(0, 10, f'Foto: {os.path.basename(path)}', 0, 1)
                 pdf.image(path, x=30, w=150)
 
+    # Retorno do PDF em buffer
     pdf_buffer = io.BytesIO(pdf.output(dest='S').encode('latin1'))
     return pdf_buffer
