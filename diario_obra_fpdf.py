@@ -1,13 +1,10 @@
+
 import os
 import io
-import tempfile
-import shutil
 from datetime import datetime
-from pathlib import Path
-from PIL import Image as PILImage
 from fpdf import FPDF
-import yagmail
 import streamlit as st
+from PIL import Image as PILImage
 
 LOGO_PDF_PATH = "LOGO_RDV_AZUL.png"
 
